@@ -67,7 +67,11 @@ final class IntercomController: ObservableObject {
     private var settingsObservers = Set<AnyCancellable>()
     private var timers = Set<AnyCancellable>()
 
-    init(settings: AppSettings = AppSettings()) {
+    convenience init() {
+        self.init(settings: AppSettings())
+    }
+
+    init(settings: AppSettings) {
         self.settings = settings
         let jitter = JitterBuffer(configuration: settings.jitterConfiguration)
         jitterBuffer = jitter
