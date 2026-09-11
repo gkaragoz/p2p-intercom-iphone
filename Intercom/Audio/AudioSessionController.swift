@@ -61,10 +61,20 @@ final class AudioSessionController {
         try session.setCategory(
             .playAndRecord,
             mode: .voiceChat,
-            options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
+            options: [Self.bluetoothHandsFreeOption, .allowBluetoothA2DP, .defaultToSpeaker]
         )
         try session.setPreferredIOBufferDuration(IntercomProtocol.frameDuration)
         try session.setActive(true, options: [])
+    }
+
+    /// The iOS 26 SDK renamed `.allowBluetooth` to `.allowBluetoothHFP` (same value); older SDKs
+    /// only know the old name. Swift 6.2 ships with Xcode 26.
+    private static var bluetoothHandsFreeOption: AVAudioSession.CategoryOptions {
+        #if compiler(>=6.2)
+        return .allowBluetoothHFP
+        #else
+        return .allowBluetooth
+        #endif
     }
 
     /// Re-activates the session after an interruption without touching the category.
