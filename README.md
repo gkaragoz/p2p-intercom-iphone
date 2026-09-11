@@ -56,7 +56,7 @@ kodek gecikmesi sıfırdır. AirPods'un mikrofonu kullanıldığında Bluetooth 
 
 ## Gereksinimler
 
-- macOS üzerinde **Xcode 15 veya üstü** (Xcode 16 / 26 ile denendi olarak hedeflenmiştir).
+- macOS üzerinde **Xcode 15 veya üstü**. Proje CI'da Xcode 26.6 (iOS 26.5 SDK) ile derlenmektedir.
 - **iOS 16.0+** çalıştıran iki iPhone.
 - Ücretsiz bir **Apple ID** (ücretli geliştirici hesabı gerekmez).
 - İki telefon aynı Wi‑Fi ağında olmalı **veya** her ikisinde Wi‑Fi ve Bluetooth açık olmalı
@@ -131,6 +131,12 @@ kullanım, uygulamanın ekranda kalmasıdır (**Ekranı açık tut** ayarı vars
 
 > **Not:** Sohbet kaydında geçen "Voice over IP" background mode'u yalnızca PushKit/CallKit ile
 > anlam kazanır ve App Store dağıtımı gerektirir; bu projede gerekmediği için eklenmemiştir.
+
+## Test durumu
+
+Kod, GitHub Actions üzerinde her push'ta derlenir (iOS Simülatör) ve çekirdek birim testleri
+Linux + macOS'ta çalışır. **Gerçek iki iPhone + AirPods ile uçtan uca test henüz yapılmamıştır**;
+ilk denemede sorun görürseniz *Tanılama* bölümündeki değerlerle birlikte bir issue açın.
 
 ## Sorun giderme
 

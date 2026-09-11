@@ -21,9 +21,9 @@ enum AudioEngineError: LocalizedError {
 ///     inputNode ──tap──▶ AVAudioConverter ──▶ 20 ms Int16 frames ──▶ onCapturedFrame
 ///     JitterBuffer ──▶ AVAudioSourceNode ──▶ mainMixerNode ──▶ outputNode (AirPods / speaker)
 ///
-/// All graph mutations happen on `engineQueue`. Capture callbacks are delivered on
-/// `callbackQueue`. The render block runs on the audio thread and only touches the jitter
-/// buffer and a preallocated scratch buffer.
+/// All graph mutations happen on `engineQueue`. Converted samples are re-blocked into frames and
+/// delivered on `callbackQueue`. The render block runs on the audio thread and only touches the
+/// jitter buffer and a preallocated scratch buffer.
 final class AudioEngineController {
     typealias FrameHandler = @Sendable (_ samples: [Int16], _ levelDB: Float) -> Void
 
@@ -177,7 +177,7 @@ final class AudioEngineController {
             throw AudioEngineError.converterUnavailable
         }
         self.converter = converter
-        chunker.reset()
+        callbackQueue.async { [weak self] in self?.chunker.reset() }
         levelLock.lock()
         latestInputDescription = String(format: "%.0f Hz, %d ch", hardwareFormat.sampleRate, Int(hardwareFormat.channelCount))
         levelLock.unlock()
@@ -243,11 +243,13 @@ final class AudioEngineController {
             return
         }
 
-        let samples = UnsafeBufferPointer(start: channel[0], count: Int(converted.frameLength))
-        let frames = chunker.append(samples)
-        guard !frames.isEmpty else { return }
+        // Copy out of the engine-owned buffer; chunking and delivery happen on the callback queue,
+        // which is the only place `chunker` is touched.
+        let samples = Array(UnsafeBufferPointer(start: channel[0], count: Int(converted.frameLength)))
         callbackQueue.async { [weak self] in
-            guard let self, let handler = self.onCapturedFrame else { return }
+            guard let self else { return }
+            let frames = self.chunker.append(samples)
+            guard !frames.isEmpty, let handler = self.onCapturedFrame else { return }
             for frame in frames {
                 let level = AudioLevel.decibels(fromLinear: AudioLevel.rms(frame))
                 handler(frame, level)
