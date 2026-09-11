@@ -152,6 +152,7 @@ final class IntercomController: ObservableObject {
 
     func stop() {
         tearDown()
+        lastError = nil
         phase = .idle
     }
 
@@ -540,6 +541,9 @@ final class IntercomController: ObservableObject {
         isVoiceDetected = false
         statistics = JitterBuffer.Statistics()
         framesSent = 0
+        route = .unknown
+        inputDescription = ""
+        roundTripMs = nil
         UIApplication.shared.isIdleTimerDisabled = false
     }
 }

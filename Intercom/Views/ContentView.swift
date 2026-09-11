@@ -67,27 +67,29 @@ struct ContentView: View {
         controller.isMuted ? "Unmute" : "Mute"
     }
 
+    /// The talk button is centred; the mute button is overlaid at the leading edge so the bar
+    /// fits 375-pt phones (iPhone SE / mini) without pushing anything off-screen.
     private var talkControls: some View {
-        HStack(alignment: .center, spacing: 28) {
-            Button {
-                controller.toggleMute()
-            } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: controller.isMuted ? "mic.slash.fill" : "mic.fill")
-                        .font(.title2)
-                    Text(muteLabel)
-                        .font(.caption)
+        TalkButton()
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .leading) {
+                Button {
+                    controller.toggleMute()
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: controller.isMuted ? "mic.slash.fill" : "mic.fill")
+                            .font(.title3)
+                        Text(muteLabel)
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .frame(width: 48)
                 }
-                .frame(width: 64)
+                .buttonStyle(.bordered)
+                .tint(controller.isMuted ? .red : .secondary)
+                .disabled(!controller.isRunning)
+                .padding(.leading, 12)
             }
-            .buttonStyle(.bordered)
-            .tint(controller.isMuted ? .red : .secondary)
-            .disabled(!controller.isRunning)
-
-            TalkButton()
-
-            Color.clear
-                .frame(width: 64, height: 1)
-        }
     }
 }

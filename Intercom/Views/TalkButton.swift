@@ -6,7 +6,13 @@ import UIKit
 struct TalkButton: View {
     @EnvironmentObject private var controller: IntercomController
     @EnvironmentObject private var settings: AppSettings
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isPressing = false
+    /// Whether the current press began as a push-to-talk hold; a mode change mid-press must not
+    /// turn the release into a mute toggle.
+    @State private var pressIsTalkHold = false
+
+    var diameter: CGFloat = 176
 
     private var mode: TransmitMode { settings.transmitMode }
 
@@ -17,17 +23,18 @@ struct TalkButton: View {
                 .shadow(color: fillColor.opacity(controller.isSending ? 0.55 : 0.25), radius: controller.isSending ? 24 : 10)
             Circle()
                 .strokeBorder(Color.white.opacity(0.25), lineWidth: 4)
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 Image(systemName: symbolName)
-                    .font(.system(size: 46, weight: .semibold))
+                    .font(.system(size: 40, weight: .semibold))
                 Text(label)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 18)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 16)
             }
             .foregroundStyle(.white)
         }
-        .frame(width: 200, height: 200)
+        .frame(width: diameter, height: diameter)
         .scaleEffect(controller.isSending ? 1.06 : (isPressing ? 0.96 : 1))
         .opacity(controller.isRunning ? 1 : 0.45)
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: controller.isSending)
@@ -38,9 +45,31 @@ struct TalkButton: View {
                 .onChanged { _ in press() }
                 .onEnded { _ in release() }
         )
+        // A drag that is cancelled (incoming call, Control Center, app switcher) ends without
+        // `onEnded`, so reset the visual state whenever the hold is released elsewhere.
+        .onChange(of: scenePhase) { phase in
+            if phase != .active { cancelPress() }
+        }
+        .onChange(of: controller.isRunning) { running in
+            if !running { cancelPress() }
+        }
+        .onChange(of: controller.isTalkButtonHeld) { held in
+            if !held, pressIsTalkHold { cancelPress() }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(label))
         .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: Text("Start talking")) {
+            guard controller.isRunning, mode == .pushToTalk else { return }
+            controller.pressTalkButton()
+        }
+        .accessibilityAction(named: Text("Stop talking")) {
+            controller.releaseTalkButton()
+        }
+        .accessibilityAction(named: Text(controller.isMuted ? "Unmute" : "Mute")) {
+            guard controller.isRunning else { return }
+            controller.toggleMute()
+        }
     }
 
     private var fillColor: Color {
@@ -77,7 +106,8 @@ struct TalkButton: View {
     private func press() {
         guard controller.isRunning, !isPressing else { return }
         isPressing = true
-        if mode == .pushToTalk, !controller.isMuted {
+        pressIsTalkHold = mode == .pushToTalk && !controller.isMuted
+        if pressIsTalkHold {
             controller.pressTalkButton()
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
@@ -86,15 +116,24 @@ struct TalkButton: View {
     private func release() {
         guard isPressing else { return }
         isPressing = false
+        let wasTalkHold = pressIsTalkHold
+        pressIsTalkHold = false
         guard controller.isRunning else { return }
-        if mode == .pushToTalk {
+        if wasTalkHold {
             if controller.isTalkButtonHeld {
                 controller.releaseTalkButton()
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-        } else {
+        } else if mode != .pushToTalk {
             controller.toggleMute()
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
+    }
+
+    private func cancelPress() {
+        guard isPressing || pressIsTalkHold else { return }
+        isPressing = false
+        pressIsTalkHold = false
+        controller.releaseTalkButton()
     }
 }

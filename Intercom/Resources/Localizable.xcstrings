@@ -1038,6 +1038,23 @@
         }
       }
     },
+    "Start talking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start talking"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konuşmaya başla"
+          }
+        }
+      }
+    },
     "Start the intercom to look for nearby iPhones.": {
       "extractionState": "manual",
       "localizations": {
@@ -1085,6 +1102,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Durdur"
+          }
+        }
+      }
+    },
+    "Stop talking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop talking"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konuşmayı bitir"
           }
         }
       }

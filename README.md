@@ -84,7 +84,7 @@ kodek gecikmesi sıfırdır. AirPods'un mikrofonu kullanıldığında Bluetooth 
 | Sınır | Anlamı |
 |---|---|
 | **7 gün** | Ücretsiz hesapla imzalanan uygulama 7 gün sonra açılmaz. Telefonu tekrar Mac'e bağlayıp **Run** yapmak yeterlidir; ayarlar silinmez. |
-| **3 cihaz** | Aynı Apple ID ile aynı anda en fazla 3 cihaza yüklenebilir. |
+| **3 uygulama / cihaz** | Ücretsiz hesapla bir cihazda aynı anda en fazla 3 sideload uygulama kurulu olabilir. Xcode "Maximum number of apps for free development profiles has been reached" derse o cihazdan başka bir geliştirici uygulamasını silin. Cihaz sayısı için ayrı bir sınır yoktur. |
 | **10 App ID / hafta** | Farklı bundle identifier'larla çok oynamayın. |
 | Push, iCloud, TestFlight | Ücretsiz hesapta yok; bu uygulama bunları **kullanmaz**. Yerel ağ, mikrofon ve arka plan ses izinleri ücretsiz hesapta sorunsuz çalışır. |
 
@@ -143,7 +143,7 @@ ilk denemede sorun görürseniz *Tanılama* bölümündeki değerlerle birlikte 
 | Belirti | Yapılacak |
 |---|---|
 | Karşı taraf listede görünmüyor | İki telefonda da Wi‑Fi **ve** Bluetooth açık mı? Aynı ağda mı? Yerel Ağ iznini **Ayarlar ▸ Intercom** altından kontrol edin. Uygulamayı iki telefonda da kapatıp açın. |
-| Görünüyor ama bağlanmıyor | Satırdaki **Bağlan**'a dokunun. Bazı kurumsal/otel Wi‑Fi ağları cihazlar arası trafiği engeller; bu durumda Wi‑Fi'yi kapatın, yalnızca Bluetooth + P2P Wi‑Fi ile bağlanır (menzil daha kısa olur). |
+| Görünüyor ama bağlanmıyor | Satırdaki **Bağlan**'a dokunun. Bazı kurumsal/otel Wi‑Fi ağları cihazlar arası trafiği engeller; bu durumda o ağdan çıkın ya da ağı unutun (Ayarlar ▸ Wi‑Fi ▸ ⓘ ▸ Bu Ağı Unut) ama **Wi‑Fi'yi kapatmayın**: cihazdan cihaza (P2P) Wi‑Fi için Wi‑Fi radyosunun açık olması gerekir. |
 | Ses kesik kesik geliyor | **Oynatma tamponu**'nu 100–200 ms'ye çıkarın. Tanılama'da *Gizlenen kayıp* ve *Tampon boşalması* artıyorsa ağ zayıftır; telefonları yaklaştırın. |
 | Yankı / uğultu | Kulaklık kullanın ya da sesi kısın. Hoparlör modunda yankı bastırma vardır ama iki telefon aynı odadaysa akustik geri besleme oluşabilir. |
 | VOX hep açık / hiç açılmıyor | Ses eşiğini ayarlayın; gösterge işareti geçince gönderim başlar. |
@@ -219,4 +219,5 @@ Open `Intercom.xcodeproj`, add your Apple ID under *Xcode ▸ Settings ▸ Accou
 *Personal Team* under *Signing & Capabilities* (change the bundle identifier if Xcode says it is
 taken), enable *Developer Mode* on the iPhone, plug it in and press *Run*. On the phone, trust the
 developer profile under *Settings ▸ General ▸ VPN & Device Management*. Free‑account apps expire
-after 7 days (just run again from Xcode) and can be installed on at most 3 devices.
+after 7 days (just run again from Xcode), and a device can hold at most 3 free‑provisioned apps
+at a time.
