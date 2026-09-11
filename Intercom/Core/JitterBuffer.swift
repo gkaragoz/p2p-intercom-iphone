@@ -35,11 +35,11 @@ final class JitterBuffer {
         /// Returns a copy with every field clamped to a sane range.
         func normalized() -> Configuration {
             var copy = self
-            copy.frameSize = max(1, copy.frameSize)
-            copy.targetDelayFrames = max(1, copy.targetDelayFrames)
-            copy.maxDelayFrames = max(copy.targetDelayFrames + 2, copy.maxDelayFrames)
-            copy.trimPatiencePulls = max(1, copy.trimPatiencePulls)
-            copy.resyncDistance = max(copy.maxDelayFrames + 1, copy.resyncDistance)
+            copy.frameSize = min(max(1, copy.frameSize), AudioPacket.maxSamples)
+            copy.targetDelayFrames = min(max(1, copy.targetDelayFrames), 500)
+            copy.maxDelayFrames = min(max(copy.targetDelayFrames + 2, copy.maxDelayFrames), 1_000)
+            copy.trimPatiencePulls = min(max(1, copy.trimPatiencePulls), 100_000)
+            copy.resyncDistance = min(max(copy.maxDelayFrames + 1, copy.resyncDistance), 30_000)
             return copy
         }
     }

@@ -204,6 +204,19 @@ final class JitterBufferTests: XCTestCase {
         let buffer = makeBuffer()
         buffer.configuration = config
         XCTAssertEqual(buffer.configuration.targetDelayFrames, 1)
+
+        var huge = JitterBuffer.Configuration()
+        huge.frameSize = Int.max
+        huge.targetDelayFrames = Int.max
+        huge.maxDelayFrames = Int.max
+        huge.trimPatiencePulls = Int.max
+        huge.resyncDistance = Int.max
+        let clamped = huge.normalized()
+        XCTAssertEqual(clamped.frameSize, AudioPacket.maxSamples)
+        XCTAssertEqual(clamped.targetDelayFrames, 500)
+        XCTAssertEqual(clamped.maxDelayFrames, 1_000)
+        XCTAssertGreaterThan(clamped.resyncDistance, clamped.maxDelayFrames)
+        _ = JitterBuffer(configuration: huge)
     }
 
     func testZeroLengthPullIsHarmless() {
