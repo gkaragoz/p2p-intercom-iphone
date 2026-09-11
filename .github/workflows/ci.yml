@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core-tests-linux:
+    name: Core unit tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Run IntercomCore tests
+        run: swift test --parallel
+
+  ios-build:
+    name: iOS app build (Simulator)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Core unit tests (macOS)
+        run: swift test --parallel
+      - name: Build Intercom for the iOS Simulator
+        run: |
+          xcodebuild \
+            -project Intercom.xcodeproj \
+            -target Intercom \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ONLY_ACTIVE_ARCH=YES \
+            build

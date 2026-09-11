@@ -1,0 +1,40 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom looks for the other iPhone on your local network to connect directly, without the internet."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom, internet olmadan doğrudan bağlanmak için diğer iPhone'u yerel ağınızda arar."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom needs the microphone so the other iPhone can hear you."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom, diğer iPhone'un sizi duyabilmesi için mikrofona ihtiyaç duyar."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
