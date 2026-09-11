@@ -3,7 +3,9 @@ import Foundation
 /// Reorders, de-jitters and conceals losses for a stream of `AudioPacket`s.
 ///
 /// Network side calls `push(_:)` from any thread; the audio render callback calls
-/// `pull(into:)`. Both are serialized with a lock that is only held for a few microseconds.
+/// `pull(into:)`. Both are serialized with a lock that is only held for a few microseconds and
+/// never while allocating. Frame storage is recycled through a small pool so the steady-state
+/// pull path neither allocates nor frees memory on the audio thread.
 ///
 /// Behaviour:
 /// * The stream starts in `.buffering` and only begins playing once `targetDelayFrames`
@@ -72,6 +74,8 @@ final class JitterBuffer {
     private let lock = NSLock()
     private var config: Configuration
     private var pending: [PendingFrame] = []
+    /// Recycled sample arrays, so consuming a frame on the audio thread does not free memory.
+    private var pool: [[Int16]] = []
     private var ring: SampleRingBuffer
     private var nextSequence: UInt16 = 0
     private var state: State = .idle
@@ -82,11 +86,17 @@ final class JitterBuffer {
         let normalized = configuration.normalized()
         config = normalized
         ring = SampleRingBuffer(capacity: Self.ringCapacity(for: normalized))
+        pending.reserveCapacity(Self.poolLimit(for: normalized))
+        pool.reserveCapacity(Self.poolLimit(for: normalized))
     }
 
     private static func ringCapacity(for config: Configuration) -> Int {
         // Enough for the deepest queue plus the largest render request we expect.
         (config.maxDelayFrames + 2) * config.frameSize + 8192
+    }
+
+    private static func poolLimit(for config: Configuration) -> Int {
+        config.maxDelayFrames + 4
     }
 
     var configuration: Configuration {
@@ -97,14 +107,25 @@ final class JitterBuffer {
         }
         set {
             let normalized = newValue.normalized()
+            let needed = Self.ringCapacity(for: normalized)
+            lock.lock()
+            let currentCapacity = ring.capacity
+            lock.unlock()
+            // Allocate outside the lock so the audio thread never waits on malloc.
+            let replacement = currentCapacity < needed ? SampleRingBuffer(capacity: needed) : nil
+            var spare: [PendingFrame] = []
+            spare.reserveCapacity(Self.poolLimit(for: normalized))
+            var sparePool: [[Int16]] = []
+            sparePool.reserveCapacity(Self.poolLimit(for: normalized))
+
             lock.lock()
             defer { lock.unlock() }
             guard normalized != config else { return }
             config = normalized
-            let needed = Self.ringCapacity(for: normalized)
-            if ring.capacity < needed {
-                ring = SampleRingBuffer(capacity: needed)
-                pending.removeAll()
+            if let replacement {
+                ring = replacement
+                pending = spare
+                pool = sparePool
                 if state == .playing { state = .buffering }
             }
         }
@@ -129,7 +150,9 @@ final class JitterBuffer {
     func reset() {
         lock.lock()
         defer { lock.unlock() }
-        pending.removeAll()
+        while let frame = pending.popLast() {
+            recycle(frame.samples)
+        }
         ring.removeAll()
         state = .idle
         stats = Statistics()
@@ -162,12 +185,16 @@ final class JitterBuffer {
             return
         }
 
-        let frame = PendingFrame(sequence: packet.sequence, samples: packet.samples)
+        var storage = pool.popLast() ?? []
+        storage.removeAll(keepingCapacity: true)
+        storage.append(contentsOf: packet.samples)
+        let frame = PendingFrame(sequence: packet.sequence, samples: storage)
         let insertAt = pending.firstIndex { SequenceNumber.distance(from: nextSequence, to: $0.sequence) > distance } ?? pending.count
         pending.insert(frame, at: insertAt)
 
         while pending.count > config.maxDelayFrames {
             let dropped = pending.removeFirst()
+            recycle(dropped.samples)
             stats.overflowDropped += 1
             nextSequence = dropped.sequence &+ 1
         }
@@ -195,14 +222,14 @@ final class JitterBuffer {
             let distance = SequenceNumber.distance(from: nextSequence, to: first.sequence)
             if distance == 0 {
                 ring.write(first.samples)
-                pending.removeFirst()
+                recycle(pending.removeFirst().samples)
                 stats.played += 1
             } else if distance > 0 {
                 // The frame we need is missing but a later one is queued: conceal it rather than stall.
                 ring.writeSilence(config.frameSize)
                 stats.concealed += 1
             } else {
-                pending.removeFirst()
+                recycle(pending.removeFirst().samples)
                 stats.lateDropped += 1
                 continue
             }
@@ -231,7 +258,9 @@ final class JitterBuffer {
     // MARK: - Private
 
     private func beginStream(at sequence: UInt16) {
-        pending.removeAll()
+        while let frame = pending.popLast() {
+            recycle(frame.samples)
+        }
         ring.removeAll()
         nextSequence = sequence
         state = .buffering
@@ -243,12 +272,20 @@ final class JitterBuffer {
             excessPulls += 1
             if excessPulls >= config.trimPatiencePulls {
                 let dropped = pending.removeFirst()
+                recycle(dropped.samples)
                 nextSequence = dropped.sequence &+ 1
                 stats.trimmed += 1
                 excessPulls = 0
             }
         } else {
             excessPulls = 0
+        }
+    }
+
+    /// Keeps a consumed frame's storage for reuse instead of freeing it (bounded by the pool limit).
+    private func recycle(_ samples: [Int16]) {
+        if pool.count < Self.poolLimit(for: config) {
+            pool.append(samples)
         }
     }
 

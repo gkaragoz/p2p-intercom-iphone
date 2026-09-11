@@ -55,7 +55,9 @@ struct ContentView: View {
             await controller.start()
         }
         .onChange(of: scenePhase) { newPhase in
-            if newPhase != .active {
+            if newPhase == .active {
+                controller.sceneDidBecomeActive()
+            } else {
                 controller.releaseTalkButton()
             }
         }

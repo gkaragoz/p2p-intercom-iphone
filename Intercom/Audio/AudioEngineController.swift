@@ -23,7 +23,13 @@ enum AudioEngineError: LocalizedError {
 ///
 /// All graph mutations happen on `engineQueue`. Converted samples are re-blocked into frames and
 /// delivered on `callbackQueue`. The render block runs on the audio thread and only touches the
-/// jitter buffer and a preallocated scratch buffer.
+/// jitter buffer (a short critical section, no allocation on the steady-state path) and a
+/// preallocated scratch buffer.
+///
+/// Recovery: a one-second health check on `engineQueue` restarts the engine whenever it is found
+/// stopped while it should be running (transient failures during a Bluetooth hand-off, an
+/// interruption whose `.ended` notification never arrives, ...). `suspend()` pauses that check for
+/// the duration of an audio interruption.
 final class AudioEngineController {
     typealias FrameHandler = @Sendable (_ samples: [Int16], _ levelDB: Float) -> Void
 
@@ -35,16 +41,20 @@ final class AudioEngineController {
     var onEngineRestart: (@Sendable () -> Void)?
     /// Called on the private queue when the engine could not be restarted after a configuration change.
     var onEngineFailure: (@Sendable (Error) -> Void)?
+    /// Called on `engineQueue` right before every (re)start; use it to make sure the audio session is active.
+    var prepareSession: (@Sendable () throws -> Void)?
 
     private var engine = AVAudioEngine()
     private let wireFormat: AVAudioFormat
     private let playbackFormat: AVAudioFormat
     private var sourceNode: AVAudioSourceNode?
-    private var converter: AVAudioConverter?
     private var chunker = FrameChunker(frameSize: IntercomProtocol.frameSamples)
     private let callbackQueue = DispatchQueue(label: "intercom.audio.capture", qos: .userInteractive)
     private let engineQueue = DispatchQueue(label: "intercom.audio.engine", qos: .userInitiated)
     private var wantsRunning = false
+    private var isSuspended = false
+    private var hasReportedFailure = false
+    private var healthTimer: DispatchSourceTimer?
     private var observer: NSObjectProtocol?
     private let renderScratch: UnsafeMutableBufferPointer<Int16>
     private let levelLock = NSLock()
@@ -72,6 +82,7 @@ final class AudioEngineController {
         if let observer {
             NotificationCenter.default.removeObserver(observer)
         }
+        healthTimer?.cancel()
         renderScratch.deallocate()
     }
 
@@ -104,23 +115,47 @@ final class AudioEngineController {
     func start() throws {
         try engineQueue.sync {
             wantsRunning = true
+            isSuspended = false
+            hasReportedFailure = false
             try buildGraphAndStart()
             installObserverIfNeeded()
+            startHealthTimer()
         }
     }
 
     func stop() {
         engineQueue.sync {
             wantsRunning = false
+            stopHealthTimer()
             engine.stop()
             tearDownGraph()
             jitterBuffer.reset()
         }
     }
 
-    /// Rebuilds the graph and restarts (used after interruptions and route changes).
+    /// The system stopped the engine for an audio interruption (phone call, Siri, ...).
+    /// Pauses automatic recovery until `resume()` or `restart()`.
+    func suspend() {
+        engineQueue.async { [self] in
+            isSuspended = true
+            engine.stop()
+        }
+    }
+
+    /// Ends a suspension and brings the engine back if it is not running.
+    func resume() {
+        engineQueue.async { [self] in
+            isSuspended = false
+            if !engine.isRunning {
+                rebuildIfWanted()
+            }
+        }
+    }
+
+    /// Forces a full graph rebuild and restart.
     func restart() {
         engineQueue.async { [self] in
+            isSuspended = false
             rebuildIfWanted()
         }
     }
@@ -128,6 +163,7 @@ final class AudioEngineController {
     /// Throws away the engine instance entirely; required after `mediaServicesWereReset`.
     func recreateEngine() {
         engineQueue.async { [self] in
+            isSuspended = false
             engine.stop()
             tearDownGraph()
             engine = AVAudioEngine()
@@ -138,6 +174,7 @@ final class AudioEngineController {
     // MARK: - Graph management (engineQueue only)
 
     private func buildGraphAndStart() throws {
+        try prepareSession?()
         tearDownGraph()
         try buildGraph()
         engine.prepare()
@@ -148,11 +185,36 @@ final class AudioEngineController {
         guard wantsRunning else { return }
         do {
             try buildGraphAndStart()
+            hasReportedFailure = false
             callbackQueue.async { [weak self] in self?.onEngineRestart?() }
         } catch {
             os_log("Engine restart failed: %{public}@", log: Self.log, type: .error, String(describing: error))
-            callbackQueue.async { [weak self] in self?.onEngineFailure?(error) }
+            // The health check keeps retrying every second; report only the first failure of a streak.
+            if !hasReportedFailure {
+                hasReportedFailure = true
+                callbackQueue.async { [weak self] in self?.onEngineFailure?(error) }
+            }
         }
+    }
+
+    private func startHealthTimer() {
+        stopHealthTimer()
+        let timer = DispatchSource.makeTimerSource(queue: engineQueue)
+        timer.schedule(deadline: .now() + 1, repeating: 1)
+        timer.setEventHandler { [weak self] in self?.healthCheck() }
+        timer.resume()
+        healthTimer = timer
+    }
+
+    private func stopHealthTimer() {
+        healthTimer?.cancel()
+        healthTimer = nil
+    }
+
+    private func healthCheck() {
+        guard wantsRunning, !isSuspended, !engine.isRunning else { return }
+        os_log("Engine is not running; attempting recovery", log: Self.log, type: .info)
+        rebuildIfWanted()
     }
 
     private func buildGraph() throws {
@@ -176,14 +238,15 @@ final class AudioEngineController {
         guard let converter = AVAudioConverter(from: hardwareFormat, to: wireFormat) else {
             throw AudioEngineError.converterUnavailable
         }
-        self.converter = converter
         callbackQueue.async { [weak self] in self?.chunker.reset() }
         levelLock.lock()
         latestInputDescription = String(format: "%.0f Hz, %d ch", hardwareFormat.sampleRate, Int(hardwareFormat.channelCount))
         levelLock.unlock()
 
+        // The converter is bound to the tap that feeds it, so a callback still in flight for an old
+        // hardware format can never meet a converter built for a new one.
         input.installTap(onBus: 0, bufferSize: 1024, format: hardwareFormat) { [weak self] buffer, _ in
-            self?.handleCapturedBuffer(buffer)
+            self?.handleCapturedBuffer(buffer, using: converter)
         }
 
         let source = AVAudioSourceNode(format: playbackFormat) { [weak self] isSilence, _, frameCount, audioBufferList -> OSStatus in
@@ -202,7 +265,6 @@ final class AudioEngineController {
             engine.detach(sourceNode)
             self.sourceNode = nil
         }
-        converter = nil
     }
 
     private func installObserverIfNeeded() {
@@ -219,8 +281,8 @@ final class AudioEngineController {
 
     // MARK: - Capture (tap thread)
 
-    private func handleCapturedBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let converter, buffer.frameLength > 0 else { return }
+    private func handleCapturedBuffer(_ buffer: AVAudioPCMBuffer, using converter: AVAudioConverter) {
+        guard buffer.frameLength > 0 else { return }
         let ratio = wireFormat.sampleRate / buffer.format.sampleRate
         let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + 64
         guard let converted = AVAudioPCMBuffer(pcmFormat: wireFormat, frameCapacity: capacity) else { return }

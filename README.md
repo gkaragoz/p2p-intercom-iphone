@@ -202,8 +202,10 @@ SwiftUI on top of `MultipeerConnectivity` (discovery + transport) and `AVAudioEn
 - **Audio path:** `AVAudioSession` `.playAndRecord` / `.voiceChat` / `.allowBluetooth` so the
   AirPods microphone is used (Bluetooth switches to the 16 kHz HFP profile); voice processing
   (echo cancellation) for loudspeaker use; automatic rebuild on route changes and interruptions.
-- **Transport:** both phones advertise and browse; a random token decides who invites so there is
-  never a double invitation; discovery restarts after every disconnect for automatic reconnection.
+- **Transport:** both phones advertise and browse; a random token decides which side invites and
+  the other side only accepts (a non-initiator that sees no invitation re-announces itself instead
+  of inviting), so a peer pair never runs two handshakes at once; discovery restarts after every
+  drop for automatic reconnection.
   Audio frames (20 ms, 16 kHz mono Int16 PCM) go over `.unreliable`, control messages over `.reliable`.
 - **Receiver:** a jitter buffer reorders packets, conceals losses, bounds latency and resyncs
   after a peer restart. The platform‑independent core (`Intercom/Core`) is a Swift package with

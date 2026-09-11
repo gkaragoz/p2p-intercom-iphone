@@ -181,10 +181,21 @@ final class IntercomController: ObservableObject {
         isMuted.toggle()
     }
 
+    /// Called when the scene becomes active again. An interruption that ends while the app is
+    /// suspended may never deliver its `.ended` notification, so make sure audio is back.
+    func sceneDidBecomeActive() {
+        guard isRunning else { return }
+        engine.resume()
+    }
+
     // MARK: - Private: setup
 
     private func wireCallbacks() {
         let pipeline = self.pipeline
+        let audioSession = self.audioSession
+        engine.prepareSession = {
+            try audioSession.reactivate()
+        }
         engine.onCapturedFrame = { samples, levelDB in
             pipeline.handleCapturedFrame(samples, levelDB: levelDB)
         }
@@ -266,8 +277,12 @@ final class IntercomController: ObservableObject {
         let name = localDisplayName
         let peerID = PeerIdentity.peerID(displayName: name)
         let transport = MultipeerTransport(peerID: peerID, displayName: name)
-        transport.onEvent = { [weak self] event in
-            Task { @MainActor in self?.handleTransportEvent(event) }
+        transport.onEvent = { [weak self, weak transport] event in
+            Task { @MainActor in
+                // Ignore events from a transport that has since been replaced.
+                guard let self, let transport, self.transport === transport else { return }
+                self.handleTransportEvent(event)
+            }
         }
         let pipeline = self.pipeline
         transport.onAudio = { packet, _ in
@@ -329,8 +344,9 @@ final class IntercomController: ObservableObject {
 
     private func upsertPeer(_ peerID: MCPeerID, state: PeerInfo.State) {
         if let index = peers.firstIndex(where: { $0.id == peerID }) {
-            // Never downgrade a live connection because of a stale discovery callback.
+            // Never downgrade a live connection or a handshake because of a repeated discovery callback.
             if peers[index].state == .connected, state != .connected { return }
+            if peers[index].state == .connecting, state == .discovered { return }
             peers[index].state = state
         } else {
             peers.append(PeerInfo(id: peerID, name: peerID.displayName, state: state, appVersion: nil))
@@ -360,7 +376,10 @@ final class IntercomController: ObservableObject {
 
     private func peerDidDisconnect(_ peerID: MCPeerID) {
         let wasConnected = peers.first(where: { $0.id == peerID })?.state == .connected
-        peers.removeAll { $0.id == peerID }
+        // Keep the row so it can be reconnected with a tap; `.lost` removes it when it really goes away.
+        if let index = peers.firstIndex(where: { $0.id == peerID }) {
+            peers[index].state = .discovered
+        }
         if connectedPeers.isEmpty {
             if isRunning { phase = .searching }
             remoteTalkFlag = false
@@ -414,6 +433,7 @@ final class IntercomController: ObservableObject {
         route = audioSession.currentRoute
         inputDescription = engine.inputDescription
         engine.outputVolume = Float(settings.outputVolume)
+        lastError = nil
     }
 
     private func handleInterruption(_ interruption: AudioSessionController.Interruption) {
@@ -423,15 +443,12 @@ final class IntercomController: ObservableObject {
             if pipeline.gate.close() {
                 sendingDidChange(false)
             }
+            engine.suspend()
         case .ended:
             // Even when iOS does not suggest resuming, an intercom should come back on its own.
+            // The engine re-activates the session itself before restarting.
             guard isRunning else { return }
-            do {
-                try audioSession.reactivate()
-            } catch {
-                lastError = error.localizedDescription
-            }
-            engine.restart()
+            engine.resume()
         }
     }
 
