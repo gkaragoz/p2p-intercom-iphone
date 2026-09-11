@@ -53,15 +53,15 @@ final class AudioSessionController {
     ///
     /// * `.playAndRecord` + `.voiceChat`: enables the low-latency voice-processing I/O unit
     ///   (echo cancellation, gain control) and routes to a headset when one is connected.
-    /// * `.allowBluetooth`: permits the Bluetooth hands-free profile, i.e. the AirPods microphone.
-    /// * `.allowBluetoothA2DP`: keeps high-quality Bluetooth output available; when both options
-    ///   are set iOS prefers HFP while recording, which is what a two-way intercom needs.
+    /// * `.allowBluetooth` (HFP): permits the Bluetooth hands-free profile, which is the only way to
+    ///   use the AirPods microphone. A2DP is deliberately *not* allowed so iOS never picks
+    ///   high-quality one-way output plus the iPhone's own microphone.
     /// * `.defaultToSpeaker`: without a headset, play through the loudspeaker instead of the earpiece.
     func activate() throws {
         try session.setCategory(
             .playAndRecord,
             mode: .voiceChat,
-            options: [Self.bluetoothHandsFreeOption, .allowBluetoothA2DP, .defaultToSpeaker]
+            options: [Self.bluetoothHandsFreeOption, .defaultToSpeaker]
         )
         try session.setPreferredIOBufferDuration(IntercomProtocol.frameDuration)
         try session.setActive(true, options: [])

@@ -9,9 +9,7 @@ struct PeerListView: View {
             Text("Nearby iPhones")
                 .font(.headline)
             if controller.peers.isEmpty {
-                Text(controller.isRunning
-                     ? "No iPhones found yet. Open Intercom on the other iPhone."
-                     : "Start the intercom to look for nearby iPhones.")
+                Text(emptyMessage)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -23,6 +21,12 @@ struct PeerListView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(uiColor: .secondarySystemGroupedBackground)))
+    }
+
+    private var emptyMessage: LocalizedStringKey {
+        controller.isRunning
+            ? "No iPhones found yet. Open Intercom on the other iPhone."
+            : "Start the intercom to look for nearby iPhones."
     }
 }
 

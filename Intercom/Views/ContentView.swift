@@ -61,6 +61,10 @@ struct ContentView: View {
         }
     }
 
+    private var muteLabel: LocalizedStringKey {
+        controller.isMuted ? "Unmute" : "Mute"
+    }
+
     private var talkControls: some View {
         HStack(alignment: .center, spacing: 28) {
             Button {
@@ -69,7 +73,7 @@ struct ContentView: View {
                 VStack(spacing: 4) {
                     Image(systemName: controller.isMuted ? "mic.slash.fill" : "mic.fill")
                         .font(.title2)
-                    Text(controller.isMuted ? "Unmute" : "Mute")
+                    Text(muteLabel)
                         .font(.caption)
                 }
                 .frame(width: 64)

@@ -461,8 +461,13 @@ final class IntercomController: ObservableObject {
 
     private func tickMeters() {
         let snapshot = pipeline.snapshot()
-        inputMeter = snapshot.inputMeter
-        outputMeter = outputSmoother.process(AudioLevel.meterValue(dB: engine.outputLevelDB))
+        if inputMeter != snapshot.inputMeter {
+            inputMeter = snapshot.inputMeter
+        }
+        let output = outputSmoother.process(AudioLevel.meterValue(dB: engine.outputLevelDB))
+        if outputMeter != output {
+            outputMeter = output
+        }
         if isVoiceDetected != snapshot.isVoiceDetected {
             isVoiceDetected = snapshot.isVoiceDetected
         }
