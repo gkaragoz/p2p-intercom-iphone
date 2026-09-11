@@ -135,8 +135,9 @@ final class IntercomController: ObservableObject {
             audioSession.startObserving()
             try audioSession.activate()
             route = audioSession.currentRoute
-            try engine.start()
             engine.outputVolume = Float(settings.outputVolume)
+            pipeline.gate.open()
+            try await engine.start()
             inputDescription = engine.inputDescription
             startTransport()
             startTimers()
@@ -185,7 +186,7 @@ final class IntercomController: ObservableObject {
     /// suspended may never deliver its `.ended` notification, so make sure audio is back.
     func sceneDidBecomeActive() {
         guard isRunning else { return }
-        engine.resume()
+        engine.resume(endingSuspension: false)
     }
 
     // MARK: - Private: setup
@@ -422,7 +423,8 @@ final class IntercomController: ObservableObject {
     }
 
     private func sendingDidChange(_ sending: Bool) {
-        guard sending != isSending else { return }
+        // A frame that was already queued when the intercom stopped must not flip the UI back on.
+        guard isRunning, sending != isSending else { return }
         isSending = sending
         sendTalkState()
     }
@@ -432,7 +434,7 @@ final class IntercomController: ObservableObject {
     private func handleEngineRestart() {
         route = audioSession.currentRoute
         inputDescription = engine.inputDescription
-        engine.outputVolume = Float(settings.outputVolume)
+        pipeline.gate.open()
         lastError = nil
     }
 
@@ -448,7 +450,7 @@ final class IntercomController: ObservableObject {
             // Even when iOS does not suggest resuming, an intercom should come back on its own.
             // The engine re-activates the session itself before restarting.
             guard isRunning else { return }
-            engine.resume()
+            engine.resume(endingSuspension: true)
         }
     }
 
@@ -524,8 +526,10 @@ final class IntercomController: ObservableObject {
         timers.removeAll()
         stopTransport()
         releaseTalkButton()
-        pipeline.gate.close()
+        // Stop the engine first: it waits for in-flight capture callbacks, so nothing can reach
+        // the gate after it is closed below.
         engine.stop()
+        pipeline.gate.close()
         audioSession.stopObserving()
         audioSession.deactivate()
         pipeline.resetMeters()

@@ -60,6 +60,7 @@ final class AudioEngineController {
     private let levelLock = NSLock()
     private var latestOutputLevelDB: Float = -100
     private var latestInputDescription = ""
+    private var desiredOutputVolume: Float = 1
     private static let log = OSLog(subsystem: "intercom", category: "audio")
 
     init(jitterBuffer: JitterBuffer) {
@@ -88,14 +89,22 @@ final class AudioEngineController {
 
     // MARK: - Public API
 
-    var isRunning: Bool {
-        engineQueue.sync { engine.isRunning }
-    }
-
-    /// Playback gain applied to the peer's voice (0...1).
+    /// Playback gain applied to the peer's voice (0...1). Applied asynchronously on the engine
+    /// queue and re-applied after every graph rebuild, so the caller never blocks.
     var outputVolume: Float {
-        get { engineQueue.sync { engine.mainMixerNode.outputVolume } }
-        set { engineQueue.sync { engine.mainMixerNode.outputVolume = newValue } }
+        get {
+            levelLock.lock()
+            defer { levelLock.unlock() }
+            return desiredOutputVolume
+        }
+        set {
+            levelLock.lock()
+            desiredOutputVolume = newValue
+            levelLock.unlock()
+            engineQueue.async { [self] in
+                engine.mainMixerNode.outputVolume = newValue
+            }
+        }
     }
 
     /// Most recent peak level of the audio being played, in dBFS.
@@ -112,29 +121,45 @@ final class AudioEngineController {
         return latestInputDescription
     }
 
-    func start() throws {
-        try engineQueue.sync {
-            wantsRunning = true
-            isSuspended = false
-            hasReportedFailure = false
-            try buildGraphAndStart()
-            installObserverIfNeeded()
-            startHealthTimer()
+    /// Builds the graph and starts the engine. Runs on the engine queue; the caller is not blocked.
+    func start() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            engineQueue.async { [self] in
+                do {
+                    wantsRunning = true
+                    isSuspended = false
+                    hasReportedFailure = false
+                    try buildGraphAndStart()
+                    installObserverIfNeeded()
+                    startHealthTimer()
+                    continuation.resume()
+                } catch {
+                    wantsRunning = false
+                    stopHealthTimer()
+                    engine.stop()
+                    tearDownGraph()
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 
+    /// Stops the engine and waits for any capture callback still in flight, so no frame reaches
+    /// the transmit gate after this returns.
     func stop() {
         engineQueue.sync {
             wantsRunning = false
+            isSuspended = false
             stopHealthTimer()
             engine.stop()
             tearDownGraph()
             jitterBuffer.reset()
         }
+        callbackQueue.sync {}
     }
 
     /// The system stopped the engine for an audio interruption (phone call, Siri, ...).
-    /// Pauses automatic recovery until `resume()` or `restart()`.
+    /// Pauses automatic recovery until `resume(endingSuspension:)` succeeds.
     func suspend() {
         engineQueue.async { [self] in
             isSuspended = true
@@ -142,21 +167,31 @@ final class AudioEngineController {
         }
     }
 
-    /// Ends a suspension and brings the engine back if it is not running.
-    func resume() {
+    /// Brings the engine back if it is not running.
+    ///
+    /// - Parameter endingSuspension: `true` when the interruption is known to be over (the
+    ///   `.ended` notification arrived): the suspension is lifted even if this attempt fails so the
+    ///   health check keeps retrying. `false` for best-effort attempts (the app became active):
+    ///   the suspension is only lifted once a rebuild actually succeeds, because the interruption
+    ///   may still be in progress.
+    func resume(endingSuspension: Bool) {
         engineQueue.async { [self] in
-            isSuspended = false
-            if !engine.isRunning {
-                rebuildIfWanted()
+            guard wantsRunning else { return }
+            if endingSuspension {
+                isSuspended = false
             }
-        }
-    }
-
-    /// Forces a full graph rebuild and restart.
-    func restart() {
-        engineQueue.async { [self] in
-            isSuspended = false
-            rebuildIfWanted()
+            if engine.isRunning {
+                isSuspended = false
+                return
+            }
+            do {
+                try buildGraphAndStart()
+                isSuspended = false
+                hasReportedFailure = false
+                callbackQueue.async { [weak self] in self?.onEngineRestart?() }
+            } catch {
+                os_log("Engine resume failed: %{public}@", log: Self.log, type: .info, String(describing: error))
+            }
         }
     }
 
@@ -182,7 +217,7 @@ final class AudioEngineController {
     }
 
     private func rebuildIfWanted() {
-        guard wantsRunning else { return }
+        guard wantsRunning, !isSuspended else { return }
         do {
             try buildGraphAndStart()
             hasReportedFailure = false
@@ -255,6 +290,7 @@ final class AudioEngineController {
         }
         engine.attach(source)
         engine.connect(source, to: engine.mainMixerNode, format: playbackFormat)
+        engine.mainMixerNode.outputVolume = outputVolume
         sourceNode = source
     }
 
@@ -274,8 +310,12 @@ final class AudioEngineController {
             object: nil,
             queue: nil
         ) { [weak self] notification in
-            guard let self, let changed = notification.object as? AVAudioEngine, changed === self.engine else { return }
-            self.engineQueue.async { self.rebuildIfWanted() }
+            // Hop to the engine queue first; `engine` is only safe to read there.
+            guard let self, let changed = notification.object as? AVAudioEngine else { return }
+            self.engineQueue.async {
+                guard changed === self.engine else { return }
+                self.rebuildIfWanted()
+            }
         }
     }
 

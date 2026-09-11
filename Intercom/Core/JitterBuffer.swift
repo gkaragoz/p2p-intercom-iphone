@@ -118,16 +118,22 @@ final class JitterBuffer {
             var sparePool: [[Int16]] = []
             sparePool.reserveCapacity(Self.poolLimit(for: normalized))
 
+            // Swap under the lock, but let the old storage be freed only after the lock is released
+            // so the audio thread never waits on a deallocation.
+            var retired: (SampleRingBuffer, [PendingFrame], [[Int16]])?
             lock.lock()
-            defer { lock.unlock() }
-            guard normalized != config else { return }
-            config = normalized
-            if let replacement {
-                ring = replacement
-                pending = spare
-                pool = sparePool
-                if state == .playing { state = .buffering }
+            if normalized != config {
+                config = normalized
+                if let replacement {
+                    retired = (ring, pending, pool)
+                    ring = replacement
+                    pending = spare
+                    pool = sparePool
+                    if state == .playing { state = .buffering }
+                }
             }
+            lock.unlock()
+            withExtendedLifetime(retired) {}
         }
     }
 

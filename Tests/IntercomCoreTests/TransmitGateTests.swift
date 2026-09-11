@@ -52,4 +52,19 @@ final class TransmitGateTests: XCTestCase {
         XCTAssertFalse(gate.close())
         XCTAssertFalse(gate.evaluate(levelDB: -80).shouldSend, "button state was released by close()")
     }
+
+    func testClosedGateIgnoresFramesUntilOpened() {
+        let gate = TransmitGate(mode: .alwaysOn)
+        XCTAssertTrue(gate.evaluate(levelDB: -20).shouldSend)
+        XCTAssertTrue(gate.close())
+        XCTAssertTrue(gate.isClosed)
+        // A stale frame arriving after close() must not re-open the gate or report a change.
+        XCTAssertEqual(gate.evaluate(levelDB: -20), .init(shouldSend: false, didChange: false, isVoiceDetected: false))
+        XCTAssertFalse(gate.isSending)
+        gate.setButtonHeld(true)
+        XCTAssertFalse(gate.evaluate(levelDB: -20).shouldSend)
+        gate.open()
+        XCTAssertFalse(gate.isClosed)
+        XCTAssertEqual(gate.evaluate(levelDB: -20), .init(shouldSend: true, didChange: true, isVoiceDetected: true))
+    }
 }

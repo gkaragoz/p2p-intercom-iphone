@@ -20,6 +20,9 @@ final class TransmitGate {
     private var isMuted = false
     private var detector: VoiceActivityDetector
     private var wasSending = false
+    /// While closed, every frame is dropped regardless of mode. Closed by `close()` when the
+    /// engine stops or an interruption begins; reopened by `open()` once audio is running again.
+    private var isOpen = true
 
     init(mode: TransmitMode, detector: VoiceActivityDetector = VoiceActivityDetector()) {
         self.mode = mode
@@ -36,6 +39,12 @@ final class TransmitGate {
         lock.lock()
         defer { lock.unlock() }
         return wasSending
+    }
+
+    var isClosed: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !isOpen
     }
 
     func setMode(_ newMode: TransmitMode) {
@@ -67,6 +76,10 @@ final class TransmitGate {
     func evaluate(levelDB: Float) -> Decision {
         lock.lock()
         defer { lock.unlock() }
+        guard isOpen else {
+            // A frame that was already queued when the gate was closed must not reopen it.
+            return Decision(shouldSend: false, didChange: false, isVoiceDetected: false)
+        }
         let voice = detector.process(levelDB: levelDB)
         var send: Bool
         switch mode {
@@ -83,15 +96,24 @@ final class TransmitGate {
         return Decision(shouldSend: send, didChange: changed, isVoiceDetected: voice)
     }
 
-    /// Forces the gate closed (e.g. when the engine stops) and reports whether it was open.
+    /// Closes the gate (engine stopped, interruption began) and reports whether it was transmitting.
+    /// Frames are ignored until `open()` is called.
     @discardableResult
     func close() -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        let wasOpen = wasSending
+        let wasTransmitting = wasSending
         wasSending = false
         isButtonHeld = false
+        isOpen = false
         detector.reset()
-        return wasOpen
+        return wasTransmitting
+    }
+
+    /// Reopens the gate after `close()`; the transmit decision resumes from the next frame.
+    func open() {
+        lock.lock()
+        defer { lock.unlock() }
+        isOpen = true
     }
 }
