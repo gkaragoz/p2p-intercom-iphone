@@ -11,6 +11,12 @@ struct TalkButton: View {
     /// Whether the current press began as a push-to-talk hold; a mode change mid-press must not
     /// turn the release into a mute toggle.
     @State private var pressIsTalkHold = false
+    /// The hold was dropped (mode change, interruption) while the finger was still down; the rest
+    /// of this touch is inert so lifting the finger does not toggle mute.
+    @State private var pressConsumed = false
+    /// SwiftUI resets gesture state on gesture END *and* CANCEL, which is the only signal a
+    /// cancelled touch (incoming call, Control Center, app switcher) produces.
+    @GestureState private var touchIsDown = false
 
     var diameter: CGFloat = 176
 
@@ -42,11 +48,15 @@ struct TalkButton: View {
         .contentShape(Circle())
         .gesture(
             DragGesture(minimumDistance: 0)
+                .updating($touchIsDown) { _, state, _ in state = true }
                 .onChanged { _ in press() }
                 .onEnded { _ in release() }
         )
-        // A drag that is cancelled (incoming call, Control Center, app switcher) ends without
-        // `onEnded`, so reset the visual state whenever the hold is released elsewhere.
+        // A cancelled drag never calls `onEnded`; the gesture state reset is the only signal.
+        // After a normal release this is a no-op because `release()` already ran.
+        .onChange(of: touchIsDown) { down in
+            if !down { cancelPress() }
+        }
         .onChange(of: scenePhase) { phase in
             if phase != .active { cancelPress() }
         }
@@ -54,7 +64,12 @@ struct TalkButton: View {
             if !running { cancelPress() }
         }
         .onChange(of: controller.isTalkButtonHeld) { held in
-            if !held, pressIsTalkHold { cancelPress() }
+            // The hold ended while the finger is still down (mode change, interruption): keep
+            // `isPressing` so `press()` cannot re-arm, and make the eventual release inert.
+            if !held, pressIsTalkHold {
+                pressIsTalkHold = false
+                pressConsumed = true
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(label))
@@ -66,10 +81,14 @@ struct TalkButton: View {
         .accessibilityAction(named: Text("Stop talking")) {
             controller.releaseTalkButton()
         }
-        .accessibilityAction(named: Text(controller.isMuted ? "Unmute" : "Mute")) {
+        .accessibilityAction(named: Text(muteActionLabel)) {
             guard controller.isRunning else { return }
             controller.toggleMute()
         }
+    }
+
+    private var muteActionLabel: LocalizedStringKey {
+        controller.isMuted ? "Unmute" : "Mute"
     }
 
     private var fillColor: Color {
@@ -117,8 +136,10 @@ struct TalkButton: View {
         guard isPressing else { return }
         isPressing = false
         let wasTalkHold = pressIsTalkHold
+        let consumed = pressConsumed
         pressIsTalkHold = false
-        guard controller.isRunning else { return }
+        pressConsumed = false
+        guard controller.isRunning, !consumed else { return }
         if wasTalkHold {
             if controller.isTalkButtonHeld {
                 controller.releaseTalkButton()
@@ -130,10 +151,12 @@ struct TalkButton: View {
         }
     }
 
+    /// Full reset for touches that will never deliver `onEnded`.
     private func cancelPress() {
-        guard isPressing || pressIsTalkHold else { return }
+        guard isPressing || pressIsTalkHold || pressConsumed else { return }
         isPressing = false
         pressIsTalkHold = false
+        pressConsumed = false
         controller.releaseTalkButton()
     }
 }
