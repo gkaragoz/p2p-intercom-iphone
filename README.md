@@ -103,15 +103,21 @@ Apple ID'nizin 3 cihazlık kotası dolmuştur. İki çözüm var.
 
 **Çözüm A: bekleyin (bedava ama güvenilmez).** Apple'ın belgesi cihaz kayıtlarının 7 gün sonra düştüğünü söyler ve destek mühendislerinin bu hataya verdiği resmî cevap "bekleyin" olur. Ancak aylardır yeni cihaz kaydetmemiş olmasına rağmen kotası dolu kalan kullanıcılar var; bu düşme pratikte her zaman gerçekleşmiyor. Ücretsiz hesap cihaz listesini göremez ve silemez, çünkü o portal sayfası ücretli üyelik ister. Apple destek mühendisleri ücretsiz hesap için sıfırlama seçeneği olmadığını açıkça belirtiyor. Bu yüzden bu yola bel bağlamayın.
 
-Ekibinize kayıtlı cihazları Mac'inizden görebilirsiniz. Xcode'un indirdiği profillerden birini çözün:
+Ekibinize kayıtlı cihazları Mac'inizden görebilirsiniz. Aşağıdaki döngüyü olduğu gibi yapıştırın; Xcode'un indirdiği bütün profilleri tarar:
 
 ```bash
-ls ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/
-security cms -D -i ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/<dosya>.mobileprovision \
-  | plutil -extract ProvisionedDevices xml1 -o - -
+cd ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles
+for p in *.mobileprovision; do
+  plist=$(security cms -D -i "$p")
+  name=$(printf '%s' "$plist" | plutil -extract Name raw -o - - 2>/dev/null)
+  team=$(printf '%s' "$plist" | plutil -extract TeamName raw -o - - 2>/dev/null)
+  echo "== $name  [$team]"
+  printf '%s' "$plist" | plutil -extract ProvisionedDevices json -o - - 2>/dev/null \
+    || echo "   (cihaz listesi yok)"
+done
 ```
 
-Çıkan UDID listesi kotayı neyin doldurduğunu gösterir. Sadece iPhone'lar değil, iPad'ler ve telefonunuza eşli Apple Watch gibi Xcode'un kaydettiği her cihaz sayılır.
+Çıkan UDID listesi kotayı neyin doldurduğunu gösterir. Sadece iPhone'lar değil, iPad'ler ve telefonunuza eşli Apple Watch gibi Xcode'un kaydettiği her cihaz sayılır. `TeamName` alanı da hangi profilin hangi ekibe ait olduğunu gösterir; ikinci bir Apple ID eklediğinizde burada iki farklı ekip görürsünüz.
 
 **Çözüm A2: Apple destekten silmelerini isteyin.** developer.apple.com üzerindeki *Contact Us* bağlantısından telefon görüşmesi talep edip, Xcode free provisioning ile test etmeye devam edebilmek için eski cihazların listeden çıkarılmasını isteyebilirsiniz. Bunun işe yaradığını bildiren kullanıcılar var, ama ücretsiz hesap için garanti değildir ve zaman alır.
 
