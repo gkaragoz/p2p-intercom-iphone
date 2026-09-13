@@ -101,9 +101,21 @@ Your development team has reached the maximum number of registered iPhone device
 
 Apple ID'nizin 3 cihazlık kotası dolmuştur. İki çözüm var.
 
-**Çözüm A: bekleyin (bedava, yavaş).** Ücretsiz ekipte cihaz kayıtları 7 gün sonra kendiliğinden düşer. Bir hafta sonra ikinci telefonu bağlayıp tekrar Run yapın. Apple'ın geliştirici destek ekibinin bu hata için önerdiği yol budur; ücretsiz hesapta cihaz listesini elle silme imkânı yoktur, çünkü o portal sayfası ücretli üyelik ister.
+**Çözüm A: bekleyin (bedava ama güvenilmez).** Apple'ın belgesi cihaz kayıtlarının 7 gün sonra düştüğünü söyler ve destek mühendislerinin bu hataya verdiği resmî cevap "bekleyin" olur. Ancak aylardır yeni cihaz kaydetmemiş olmasına rağmen kotası dolu kalan kullanıcılar var; bu düşme pratikte her zaman gerçekleşmiyor. Ücretsiz hesap cihaz listesini göremez ve silemez, çünkü o portal sayfası ücretli üyelik ister. Apple destek mühendisleri ücretsiz hesap için sıfırlama seçeneği olmadığını açıkça belirtiyor. Bu yüzden bu yola bel bağlamayın.
 
-**Çözüm B: ikinci telefon için ayrı bir ücretsiz Apple ID (hemen çalışır).** Her Apple ID'nin kendi Personal Team'i ve kendi 3 cihazlık kotası vardır.
+Ekibinize kayıtlı cihazları Mac'inizden görebilirsiniz. Xcode'un indirdiği profillerden birini çözün:
+
+```bash
+ls ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/
+security cms -D -i ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/<dosya>.mobileprovision \
+  | plutil -extract ProvisionedDevices xml1 -o - -
+```
+
+Çıkan UDID listesi kotayı neyin doldurduğunu gösterir. Sadece iPhone'lar değil, iPad'ler ve telefonunuza eşli Apple Watch gibi Xcode'un kaydettiği her cihaz sayılır.
+
+**Çözüm A2: Apple destekten silmelerini isteyin.** developer.apple.com üzerindeki *Contact Us* bağlantısından telefon görüşmesi talep edip, Xcode free provisioning ile test etmeye devam edebilmek için eski cihazların listeden çıkarılmasını isteyebilirsiniz. Bunun işe yaradığını bildiren kullanıcılar var, ama ücretsiz hesap için garanti değildir ve zaman alır.
+
+**Çözüm B: ikinci telefon için ayrı bir ücretsiz Apple ID (önerilen, hemen çalışır).** Her Apple ID'nin kendi Personal Team'i ve kendi 3 cihazlık kotası vardır. Kotası dolu hesabı hiç kurcalamadan ikinci telefonu kurabilirsiniz.
 
 1. İkinci bir ücretsiz Apple ID oluşturun (ya da elinizdeki başka bir Apple ID'yi kullanın).
 2. Xcode ▸ Settings ▸ Accounts'a onu da ekleyin.
