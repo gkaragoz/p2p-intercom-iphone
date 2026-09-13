@@ -117,7 +117,9 @@ for p in *.mobileprovision; do
 done
 ```
 
-Çıkan UDID listesi kotayı neyin doldurduğunu gösterir. Sadece iPhone'lar değil, iPad'ler ve telefonunuza eşli Apple Watch gibi Xcode'un kaydettiği her cihaz sayılır. `TeamName` alanı da hangi profilin hangi ekibe ait olduğunu gösterir; ikinci bir Apple ID eklediğinizde burada iki farklı ekip görürsünüz.
+Çıkan UDID listesi kotayı neyin doldurduğunu gösterir. Sadece iPhone'lar değil, iPad'ler ve telefonunuza eşli Apple Watch gibi Xcode'un kaydettiği her cihaz sayılır.
+
+**Çıktıyı okurken dikkat:** bir ekibin bütün profilleri aynı cihaz listesini taşır. Yani dört farklı uygulamanın profilinde aynı UDID'leri görmeniz dört ayrı kayıt olduğu anlamına gelmez. Önemli olan **benzersiz UDID sayısıdır**; kotayı o belirler. Listedeki UDID'lerin baş kısmı cihazın yonga kuşağını gösterir, dolayısıyla farklı başlangıçlar farklı fiziksel cihazlar demektir. Bugün elinizde olan telefonların UDID'lerini `xcrun xctrace list devices` ile görüp listeyle karşılaştırabilir, geri kalanların artık kullanmadığınız eski cihazlar olduğunu doğrulayabilirsiniz. Ücretsiz hesapta bunları silemezsiniz, bu yüzden kota bir kez aşıldıysa kalıcıdır ve tek pratik çıkış Çözüm B'dir. `TeamName` alanı da hangi profilin hangi ekibe ait olduğunu gösterir; ikinci bir Apple ID eklediğinizde burada iki farklı ekip görürsünüz.
 
 **Çözüm A2: Apple destekten silmelerini isteyin.** developer.apple.com üzerindeki *Contact Us* bağlantısından telefon görüşmesi talep edip, Xcode free provisioning ile test etmeye devam edebilmek için eski cihazların listeden çıkarılmasını isteyebilirsiniz. Bunun işe yaradığını bildiren kullanıcılar var, ama ücretsiz hesap için garanti değildir ve zaman alır.
 
