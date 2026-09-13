@@ -81,12 +81,55 @@ kodek gecikmesi sıfırdır. AirPods'un mikrofonu kullanıldığında Bluetooth 
 
 ### Ücretsiz hesap sınırları
 
+Apple'ın ücretsiz "Personal Team" için belgelediği sınırlar:
+
 | Sınır | Anlamı |
 |---|---|
-| **7 gün** | Ücretsiz hesapla imzalanan uygulama 7 gün sonra açılmaz. Telefonu tekrar Mac'e bağlayıp **Run** yapmak yeterlidir; ayarlar silinmez. |
-| **3 uygulama / cihaz** | Ücretsiz hesapla bir cihazda aynı anda en fazla 3 sideload uygulama kurulu olabilir. Xcode "Maximum number of apps for free development profiles has been reached" derse o cihazdan başka bir geliştirici uygulamasını silin. Cihaz sayısı için ayrı bir sınır yoktur. |
-| **10 App ID / hafta** | Farklı bundle identifier'larla çok oynamayın. |
-| Push, iCloud, TestFlight | Ücretsiz hesapta yok; bu uygulama bunları **kullanmaz**. Yerel ağ, mikrofon ve arka plan ses izinleri ücretsiz hesapta sorunsuz çalışır. |
+| **7 gün** | Ücretsiz hesapla imzalanan uygulama 7 gün sonra açılmaz. Telefonu tekrar Mac'e bağlayıp **Run** yapmak yeterlidir; ayarlar ve veriler silinmez. |
+| **3 cihaz** | Aynı anda en fazla 3 cihaz kayıtlı olabilir. Bu kayıtlar da 7 gün sonra düşer. Kota dolduğunda Xcode şu hatayı verir: *"Your development team has reached the maximum number of registered iPhone devices."* Ücretsiz hesap cihaz listesini kendisi temizleyemez; çözüm için aşağıdaki bölüme bakın. |
+| **3 uygulama / cihaz** | Bir cihazda aynı anda en fazla 3 geliştirici uygulaması kurulu olabilir. Xcode "Maximum number of apps for free development profiles has been reached" derse o cihazdan başka bir geliştirici uygulamasını silin. |
+| **10 App ID / 7 gün** | Her yeni bundle identifier bir App ID harcar. Gereksiz yere değiştirmeyin. |
+| Push, iCloud, TestFlight | Ücretsiz hesapta yok; bu uygulama bunları **kullanmaz**. Mikrofon, yerel ağ (Bonjour) ve arka plan ses izinleri ücretsiz hesapta sorunsuz çalışır: bunlar Info.plist anahtarıdır, kısıtlı yetki değil. |
+
+### İkinci telefona kurulum ve cihaz kotası hatası
+
+Birinci telefona kurduktan sonra ikincisinde şu hatayı alırsanız:
+
+```
+Your development team has reached the maximum number of registered iPhone devices.
+```
+
+Apple ID'nizin 3 cihazlık kotası dolmuştur. İki çözüm var.
+
+**Çözüm A: bekleyin (bedava, yavaş).** Ücretsiz ekipte cihaz kayıtları 7 gün sonra kendiliğinden düşer. Bir hafta sonra ikinci telefonu bağlayıp tekrar Run yapın. Apple'ın geliştirici destek ekibinin bu hata için önerdiği yol budur; ücretsiz hesapta cihaz listesini elle silme imkânı yoktur, çünkü o portal sayfası ücretli üyelik ister.
+
+**Çözüm B: ikinci telefon için ayrı bir ücretsiz Apple ID (hemen çalışır).** Her Apple ID'nin kendi Personal Team'i ve kendi 3 cihazlık kotası vardır.
+
+1. İkinci bir ücretsiz Apple ID oluşturun (ya da elinizdeki başka bir Apple ID'yi kullanın).
+2. Xcode ▸ Settings ▸ Accounts'a onu da ekleyin.
+3. İkinci telefonu bağlayın, Signing & Capabilities'te **Team** olarak yeni hesabın Personal Team'ini seçin.
+4. **Bundle Identifier'ı değiştirin**, örneğin `com.adiniz.p2pintercom2`. Bir App ID yalnızca tek bir ekibe kayıtlı olabilir; birinci hesabın aldığı kimliği ikinci hesap alamaz.
+5. Run yapın.
+
+Bundle identifier'ların farklı olması uygulamanın çalışmasını **bozmaz**. MultipeerConnectivity eşleri yalnızca servis tipine göre bulur; bu projede o değer `IntercomProtocol.serviceType` içinde sabit `p2p-intercom`'dur ve iki telefonda da aynıdır. Yani farklı bundle kimliğine sahip iki kurulum birbirini normal şekilde görür ve bağlanır.
+
+Komut satırını tercih ederseniz, depoda paylaşılan bir şema olduğu için Xcode arayüzüne hiç girmeden de kurabilirsiniz:
+
+```bash
+# Telefonun UDID'sini öğrenin
+xcrun xctrace list devices
+
+# İkinci telefona, ikinci hesabın ekibiyle ve farklı bundle id ile kurun
+xcodebuild -project Intercom.xcodeproj -scheme Intercom \
+  -destination 'id=<UDID>' -allowProvisioningUpdates \
+  DEVELOPMENT_TEAM=<IKINCI_TEAM_ID> \
+  PRODUCT_BUNDLE_IDENTIFIER=com.adiniz.p2pintercom2 \
+  build
+```
+
+Team ID'leri `security find-identity -v -p codesigning` çıktısındaki parantez içi değerlerden görebilirsiniz.
+
+> **Not:** AltStore, SideStore ve Sideloadly gibi sideload araçları da aynı ücretsiz hesap kotalarını kullanır. Aynı Apple ID ile aynı 3 cihaz duvarına çarparsınız; onlarda da çözüm ikinci bir Apple ID'dir. Avantajları, ilk kurulumdan sonra haftalık yenilemeyi Xcode'suz (SideStore'da telefonun kendisinden) yapabilmenizdir.
 
 ## İlk çalıştırma
 
@@ -218,6 +261,12 @@ SwiftUI on top of `MultipeerConnectivity` (discovery + transport) and `AVAudioEn
 Open `Intercom.xcodeproj`, add your Apple ID under *Xcode ▸ Settings ▸ Accounts*, pick your
 *Personal Team* under *Signing & Capabilities* (change the bundle identifier if Xcode says it is
 taken), enable *Developer Mode* on the iPhone, plug it in and press *Run*. On the phone, trust the
-developer profile under *Settings ▸ General ▸ VPN & Device Management*. Free‑account apps expire
-after 7 days (just run again from Xcode), and a device can hold at most 3 free‑provisioned apps
-at a time.
+developer profile under *Settings ▸ General ▸ VPN & Device Management*. Free‑account limits: a
+provisioning profile expires after 7 days, a Personal Team may register 3 devices (registrations
+also expire after 7 days) and each device holds at most 3 free‑provisioned apps.
+
+If the second iPhone fails with *"Your development team has reached the maximum number of
+registered iPhone devices"*, either wait a week for the registrations to lapse, or sign the second
+phone with a second free Apple ID and a different bundle identifier. Different bundle identifiers
+are harmless here: MultipeerConnectivity matches peers on the service type (`p2p-intercom`), not on
+the bundle id.

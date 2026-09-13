@@ -26,16 +26,19 @@ jobs:
         run: xcodebuild -version
       - name: Core unit tests (macOS)
         run: swift test --parallel
+      # Builds through the shared scheme, which is what the README's command-line install
+      # recipe uses, so a broken scheme fails CI instead of the user's Mac.
       - name: Build Intercom for the iOS Simulator
         run: |
           xcodebuild \
             -project Intercom.xcodeproj \
-            -target Intercom \
-            -sdk iphonesimulator \
+            -scheme Intercom \
+            -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=YES \
             build
+
+      - name: Check the shared scheme is visible to xcodebuild
+        run: xcodebuild -project Intercom.xcodeproj -list
