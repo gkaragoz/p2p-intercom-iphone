@@ -145,7 +145,19 @@ xcodebuild -project Intercom.xcodeproj -scheme Intercom \
   build
 ```
 
-Team ID'leri `security find-identity -v -p codesigning` çıktısındaki parantez içi değerlerden görebilirsiniz.
+Team ID'yi profillerden okuyabilirsiniz:
+
+```bash
+cd ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles
+for p in *.mobileprovision; do
+  plist=$(security cms -D -i "$p")
+  id=$(printf '%s' "$plist" | plutil -extract TeamIdentifier.0 raw -o - - 2>/dev/null)
+  name=$(printf '%s' "$plist" | plutil -extract TeamName raw -o - - 2>/dev/null)
+  echo "$id  $name"
+done | sort -u
+```
+
+İkinci Apple ID'yi Xcode'a ekleyip bir kez Run dedikten sonra bu listede iki ayrı ekip görürsünüz; ikinci telefon için olanın kimliğini kullanın.
 
 > **Not:** AltStore, SideStore ve Sideloadly gibi sideload araçları da aynı ücretsiz hesap kotalarını kullanır. Aynı Apple ID ile aynı 3 cihaz duvarına çarparsınız; onlarda da çözüm ikinci bir Apple ID'dir. Avantajları, ilk kurulumdan sonra haftalık yenilemeyi Xcode'suz (SideStore'da telefonun kendisinden) yapabilmenizdir.
 
