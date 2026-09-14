@@ -42,6 +42,13 @@ struct AudioPacket: Equatable {
     func encoded() -> Data {
         var bytes = [UInt8]()
         bytes.reserveCapacity(encodedSize)
+        append(to: &bytes)
+        return Data(bytes)
+    }
+
+    /// Appends the encoding to `bytes`, so a container format (the network datagram) can build
+    /// its whole payload in one buffer instead of concatenating copies.
+    func append(to bytes: inout [UInt8]) {
         bytes.append(Self.magic0)
         bytes.append(Self.magic1)
         bytes.append(Self.version)
@@ -52,12 +59,15 @@ struct AudioPacket: Equatable {
         for sample in samples {
             bytes.appendLittleEndian(UInt16(bitPattern: sample))
         }
-        return Data(bytes)
     }
 
     static func decode(_ data: Data) -> AudioPacket? {
         guard data.count >= headerSize else { return nil }
-        let bytes = [UInt8](data)
+        return decode(bytes: [UInt8](data))
+    }
+
+    static func decode(bytes: [UInt8]) -> AudioPacket? {
+        guard bytes.count >= headerSize else { return nil }
         var reader = ByteReader(bytes)
         guard reader.readUInt8() == magic0, reader.readUInt8() == magic1 else { return nil }
         guard reader.readUInt8() == version else { return nil }

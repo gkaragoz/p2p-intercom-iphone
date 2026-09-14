@@ -3,14 +3,13 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var controller: IntercomController
     @EnvironmentObject private var settings: AppSettings
-    @Environment(\.scenePhase) private var scenePhase
     @State private var isShowingSettings = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    StatusCard()
+                    StatusCard(showSettings: { isShowingSettings = true })
                     PeerListView()
                     MetersCard()
                     ModePicker()
@@ -51,16 +50,8 @@ struct ContentView: View {
                     .environmentObject(settings)
             }
         }
-        .task {
-            await controller.start()
-        }
-        .onChange(of: scenePhase) { newPhase in
-            if newPhase == .active {
-                controller.sceneDidBecomeActive()
-            } else {
-                controller.releaseTalkButton()
-            }
-        }
+        // Starting on launch and the scene phase are handled at the App level (`IntercomApp`), so they
+        // also work when iOS launches the app without building this view.
     }
 
     private var muteLabel: LocalizedStringKey {

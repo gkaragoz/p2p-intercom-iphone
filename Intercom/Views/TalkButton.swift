@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 
 /// The big round button. In push-to-talk mode it transmits while held; in the other modes a tap
-/// toggles mute.
+/// toggles mute. A push-to-talk latch (set from the Live Activity or with VoiceOver) keeps it
+/// transmitting without a hold; a tap releases the latch.
 struct TalkButton: View {
     @EnvironmentObject private var controller: IntercomController
     @EnvironmentObject private var settings: AppSettings
@@ -54,16 +55,16 @@ struct TalkButton: View {
         )
         // A cancelled drag never calls `onEnded`; the gesture state reset is the only signal.
         // After a normal release this is a no-op because `release()` already ran.
-        .onChange(of: touchIsDown) { down in
+        .onChange(of: touchIsDown) { _, down in
             if !down { cancelPress() }
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase != .active { cancelPress() }
         }
-        .onChange(of: controller.isRunning) { running in
+        .onChange(of: controller.isRunning) { _, running in
             if !running { cancelPress() }
         }
-        .onChange(of: controller.isTalkButtonHeld) { held in
+        .onChange(of: controller.isTalkButtonHeld) { _, held in
             // The hold ended while the finger is still down (mode change, interruption): keep
             // `isPressing` so `press()` cannot re-arm, and make the eventual release inert.
             if !held, pressIsTalkHold {
@@ -78,8 +79,13 @@ struct TalkButton: View {
             guard controller.isRunning, mode == .pushToTalk else { return }
             controller.pressTalkButton()
         }
+        .accessibilityAction(named: Text("Talk without holding")) {
+            guard controller.isRunning, mode == .pushToTalk, !controller.isMuted else { return }
+            controller.setTalkLatched(true)
+        }
         .accessibilityAction(named: Text("Stop talking")) {
             controller.releaseTalkButton()
+            controller.setTalkLatched(false)
         }
         .accessibilityAction(named: Text(muteActionLabel)) {
             guard controller.isRunning else { return }
@@ -104,6 +110,7 @@ struct TalkButton: View {
 
     private var symbolName: String {
         if controller.isMuted { return "mic.slash.fill" }
+        if controller.isTalkLatched, mode == .pushToTalk { return "lock.fill" }
         if controller.isSending { return "dot.radiowaves.left.and.right" }
         return mode.systemImage
     }
@@ -112,6 +119,7 @@ struct TalkButton: View {
         switch mode {
         case .pushToTalk:
             if controller.isMuted { return "Muted" }
+            if controller.isTalkLatched, !controller.isTalkButtonHeld { return "Tap to stop talking" }
             return controller.isTalkButtonHeld ? "Talking…" : "Hold to talk"
         case .voiceActivated:
             if controller.isMuted { return "Tap to unmute" }
@@ -125,6 +133,14 @@ struct TalkButton: View {
     private func press() {
         guard controller.isRunning, !isPressing else { return }
         isPressing = true
+        if mode == .pushToTalk, controller.isTalkLatched {
+            // A tap on a latched button ends the latch; the rest of this touch does nothing, so
+            // holding on does not start a new transmission by accident.
+            controller.setTalkLatched(false)
+            pressConsumed = true
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            return
+        }
         pressIsTalkHold = mode == .pushToTalk && !controller.isMuted
         if pressIsTalkHold {
             controller.pressTalkButton()

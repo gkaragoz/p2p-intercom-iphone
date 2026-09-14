@@ -46,4 +46,27 @@ struct ByteReader {
     mutating func readInt16() -> Int16 {
         Int16(bitPattern: readUInt16())
     }
+
+    mutating func readUInt64() -> UInt64 {
+        let low = UInt64(readUInt32())
+        let high = UInt64(readUInt32())
+        return low | (high << 32)
+    }
+
+    /// Reads `count` raw bytes; returns an empty array (and invalidates the reader) on underrun.
+    mutating func readBytes(_ count: Int) -> [UInt8] {
+        guard count >= 0, count <= remaining else {
+            isValid = false
+            offset = bytes.count
+            return []
+        }
+        let slice = Array(bytes[offset..<(offset + count)])
+        offset += count
+        return slice
+    }
+
+    /// Everything that has not been read yet.
+    mutating func readRemainingBytes() -> [UInt8] {
+        readBytes(remaining)
+    }
 }

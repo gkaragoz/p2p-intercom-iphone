@@ -2,20 +2,38 @@ import XCTest
 @testable import IntercomCore
 
 final class PeerElectionTests: XCTestCase {
-    func testExactlyOneSideInitiates() {
-        let a = "0b1c-token"
-        let b = "9f2a-token"
-        XCTAssertTrue(PeerElection.shouldInitiate(localToken: a, remoteToken: b))
-        XCTAssertFalse(PeerElection.shouldInitiate(localToken: b, remoteToken: a))
+    private func initiate(_ localToken: String, _ remoteToken: String?, _ localName: String, _ remoteName: String) -> Bool {
+        PeerElection.shouldInitiate(localToken: localToken, remoteToken: remoteToken,
+                                    localTieBreaker: localName, remoteTieBreaker: remoteName)
     }
 
-    func testMissingRemoteTokenMeansInitiate() {
-        XCTAssertTrue(PeerElection.shouldInitiate(localToken: "zzz", remoteToken: nil))
-        XCTAssertTrue(PeerElection.shouldInitiate(localToken: "zzz", remoteToken: ""))
+    func testExactlyOneSideInitiatesWithDistinctNames() {
+        XCTAssertTrue(initiate("9f2a", "0b1c", "Anna", "Berk"))
+        XCTAssertFalse(initiate("0b1c", "9f2a", "Berk", "Anna"))
     }
 
-    func testEqualTokensDoNotInitiate() {
-        XCTAssertFalse(PeerElection.shouldInitiate(localToken: "same", remoteToken: "same"))
+    func testTokensBreakTiesBetweenEqualNames() {
+        XCTAssertTrue(initiate("0b1c-token", "9f2a-token", "iPhone", "iPhone"))
+        XCTAssertFalse(initiate("9f2a-token", "0b1c-token", "iPhone", "iPhone"))
+    }
+
+    func testMissingRemoteTokenStillUsesDeterministicTieBreak() {
+        // One phone lacks the other's token (stale discovery info); both must still agree.
+        let lowSide = initiate("zzz", nil, "Anna", "Berk")
+        let highSide = initiate("aaa", "zzz", "Berk", "Anna")
+        XCTAssertTrue(lowSide)
+        XCTAssertFalse(highSide)
+        XCTAssertFalse(initiate("aaa", nil, "Berk", "Anna"))
+        XCTAssertFalse(initiate("aaa", "", "Berk", "Anna"), "an empty token must not force an invitation")
+    }
+
+    func testWithoutAnyTieBreakTheLocalSideInvites() {
+        XCTAssertTrue(initiate("zzz", nil, "iPhone", "iPhone"))
+        XCTAssertTrue(initiate("zzz", "", "", "Berk"))
+    }
+
+    func testEqualTokensAndNamesDoNotInitiate() {
+        XCTAssertFalse(initiate("same", "same", "iPhone", "iPhone"))
     }
 
     func testTokensAreUniqueAndLowercase() {

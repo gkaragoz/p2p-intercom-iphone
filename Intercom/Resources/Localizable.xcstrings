@@ -1,6 +1,74 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ · %lld ch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$lld ch"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$lld kanal"
+          }
+        }
+      }
+    },
+    "%@ · depth %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · depth %2$@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · derinlik %2$@"
+          }
+        }
+      }
+    },
+    "%@ · max %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · max %2$@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · en fazla %2$@"
+          }
+        }
+      }
+    },
+    "%lld–%lld · gap %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld–%2$lld · gap %3$@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld–%2$lld · aralık %3$@"
+          }
+        }
+      }
+    },
     "About": {
       "extractionState": "manual",
       "localizations": {
@@ -14,6 +82,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hakkında"
+          }
+        }
+      }
+    },
+    "Allow Local Network access": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Local Network access"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel Ağ erişimine izin ver"
+          }
+        }
+      }
+    },
+    "Allow notifications in iOS Settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow notifications in iOS Settings"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS Ayarları'ndan bildirimlere izin ver"
           }
         }
       }
@@ -35,6 +137,23 @@
         }
       }
     },
+    "Attempt %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attempt %lld"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deneme %lld"
+          }
+        }
+      }
+    },
     "Audio": {
       "extractionState": "manual",
       "localizations": {
@@ -52,19 +171,138 @@
         }
       }
     },
-    "Both iPhones must be on the same Wi‑Fi, or have Wi‑Fi and Bluetooth turned on.": {
+    "Audio could not restart in the background.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Both iPhones must be on the same Wi‑Fi, or have Wi‑Fi and Bluetooth turned on."
+            "value": "Audio could not restart in the background."
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İki iPhone da aynı Wi‑Fi ağında olmalı ya da her ikisinde de Wi‑Fi ve Bluetooth açık olmalı."
+            "value": "Ses arka planda yeniden başlatılamadı."
+          }
+        }
+      }
+    },
+    "Audio is paused by a call or another app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio is paused by a call or another app."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses bir arama veya başka bir uygulama tarafından duraklatıldı."
+          }
+        }
+      }
+    },
+    "Audio paused": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio paused"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses duraklatıldı"
+          }
+        }
+      }
+    },
+    "Audio paused – open Intercom to resume": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio paused – open Intercom to resume"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses duraklatıldı – devam etmek için Intercom'u açın"
+          }
+        }
+      }
+    },
+    "Audio state": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio state"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses durumu"
+          }
+        }
+      }
+    },
+    "Automatic playout buffer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic playout buffer"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otomatik oynatma tamponu"
+          }
+        }
+      }
+    },
+    "Both iPhones must use the same engine and the same pairing code. Without a code a built-in key is used; a long random code keeps others from listening in.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both iPhones must use the same engine and the same pairing code. Without a code a built-in key is used; a long random code keeps others from listening in."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İki iPhone da aynı bağlantı motorunu ve aynı eşleştirme kodunu kullanmalı. Kod girilmezse yerleşik bir anahtar kullanılır; uzun ve rastgele bir kod başkalarının dinlemesini engeller."
+          }
+        }
+      }
+    },
+    "Both iPhones must use the same engine.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both iPhones must use the same engine."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İki iPhone da aynı bağlantı motorunu kullanmalı."
           }
         }
       }
@@ -86,6 +324,91 @@
         }
       }
     },
+    "Capture": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt"
+          }
+        }
+      }
+    },
+    "Capture delay": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture delay"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt gecikmesi"
+          }
+        }
+      }
+    },
+    "Capture gap (max)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture gap (max)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt aralığı (en fazla)"
+          }
+        }
+      }
+    },
+    "Capture path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture path"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt yolu"
+          }
+        }
+      }
+    },
+    "Check pairing code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check pairing code"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleştirme kodunu kontrol et"
+          }
+        }
+      }
+    },
     "Check the microphone and try again.": {
       "extractionState": "manual",
       "localizations": {
@@ -103,6 +426,57 @@
         }
       }
     },
+    "Chooses how Intercom sends your voice.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chooses how Intercom sends your voice."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom'un sesinizi nasıl göndereceğini seçer."
+          }
+        }
+      }
+    },
+    "Compatible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compatible"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uyumlu"
+          }
+        }
+      }
+    },
+    "Compatible (tap)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compatible (tap)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uyumlu (tap)"
+          }
+        }
+      }
+    },
     "Concealed": {
       "extractionState": "manual",
       "localizations": {
@@ -116,6 +490,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gizlenen kayıp"
+          }
+        }
+      }
+    },
+    "Concealed / s": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concealed / s"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gizlenen kayıp / sn"
           }
         }
       }
@@ -171,19 +562,53 @@
         }
       }
     },
-    "Connected · v%@": {
+    "Connected · %@": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connected · v%@"
+            "value": "Connected · %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bağlı · v%@"
+            "value": "Bağlı · %@"
+          }
+        }
+      }
+    },
+    "Connecting to %@…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to %@…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ile bağlanılıyor…"
+          }
+        }
+      }
+    },
+    "Connecting · attempt %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting · attempt %lld"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlanıyor · deneme %lld"
           }
         }
       }
@@ -201,6 +626,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bağlanıyor…"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı"
+          }
+        }
+      }
+    },
+    "Connection lost – reconnecting": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection lost – reconnecting"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı koptu – yeniden bağlanılıyor"
+          }
+        }
+      }
+    },
+    "Connection lost – reconnecting to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection lost – reconnecting to %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı koptu – %@ ile yeniden bağlanılıyor"
+          }
+        }
+      }
+    },
+    "Connection sounds": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection sounds"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı sesleri"
           }
         }
       }
@@ -239,6 +732,40 @@
         }
       }
     },
+    "Different pairing code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Different pairing code"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Farklı eşleştirme kodu"
+          }
+        }
+      }
+    },
+    "Direct Wi‑Fi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct Wi‑Fi"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doğrudan Wi‑Fi"
+          }
+        }
+      }
+    },
     "Disconnect": {
       "extractionState": "manual",
       "localizations": {
@@ -252,6 +779,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bağlantıyı kes"
+          }
+        }
+      }
+    },
+    "Disconnected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı kesildi"
+          }
+        }
+      }
+    },
+    "Disconnected on the other iPhone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected on the other iPhone"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone bağlantıyı kesti"
           }
         }
       }
@@ -290,6 +851,57 @@
         }
       }
     },
+    "Engine": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Engine"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı motoru"
+          }
+        }
+      }
+    },
+    "Estimated mouth-to-ear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated mouth-to-ear"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tahmini ağızdan kulağa gecikme"
+          }
+        }
+      }
+    },
+    "Frames per callback": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frames per callback"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geri çağrı başına örnek"
+          }
+        }
+      }
+    },
     "Frames received": {
       "extractionState": "manual",
       "localizations": {
@@ -324,19 +936,19 @@
         }
       }
     },
-    "Higher buffer values survive Wi‑Fi hiccups better but add delay.": {
+    "Hardware latency": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Higher buffer values survive Wi‑Fi hiccups better but add delay."
+            "value": "Hardware latency"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yüksek tampon değerleri Wi‑Fi takılmalarına daha dayanıklıdır ama gecikme ekler."
+            "value": "Donanım gecikmesi"
           }
         }
       }
@@ -375,19 +987,53 @@
         }
       }
     },
-    "Idle": {
+    "IO buffer": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Idle"
+            "value": "IO buffer"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Beklemede"
+            "value": "G/Ç tamponu"
+          }
+        }
+      }
+    },
+    "Incompatible app version": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incompatible app version"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uyumsuz uygulama sürümü"
+          }
+        }
+      }
+    },
+    "Input": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giriş"
           }
         }
       }
@@ -426,6 +1072,40 @@
         }
       }
     },
+    "Intercom is off": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom is off"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom kapalı"
+          }
+        }
+      }
+    },
+    "Interrupted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrupted"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kesintiye uğradı"
+          }
+        }
+      }
+    },
     "Keep screen awake": {
       "extractionState": "manual",
       "localizations": {
@@ -439,6 +1119,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ekranı açık tut"
+          }
+        }
+      }
+    },
+    "Keeps push to talk on without holding the button, for up to a minute.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keeps push to talk on without holding the button, for up to a minute."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bas konuşu, düğmeyi basılı tutmadan en fazla bir dakika açık tutar."
+          }
+        }
+      }
+    },
+    "Latch Push to Talk": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latch Push to Talk"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bas Konuşu Sabitle"
           }
         }
       }
@@ -460,6 +1174,57 @@
         }
       }
     },
+    "Late / s": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Late / s"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geç gelen / atılan / sn"
+          }
+        }
+      }
+    },
+    "Latency": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latency"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gecikme"
+          }
+        }
+      }
+    },
+    "Link path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link path"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı yolu"
+          }
+        }
+      }
+    },
     "Listening for your voice": {
       "extractionState": "manual",
       "localizations": {
@@ -473,6 +1238,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sesiniz bekleniyor"
+          }
+        }
+      }
+    },
+    "Local Network access is off. Allow it in Settings › Intercom.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network access is off. Allow it in Settings › Intercom."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel Ağ erişimi kapalı. Ayarlar › Intercom bölümünden izin verin."
+          }
+        }
+      }
+    },
+    "Lock misses / s": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lock misses / s"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilit kaçırma / sn"
+          }
+        }
+      }
+    },
+    "Low latency": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low latency"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düşük gecikme"
+          }
+        }
+      }
+    },
+    "Low latency (sink node)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low latency (sink node)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düşük gecikme (sink node)"
           }
         }
       }
@@ -545,6 +1378,40 @@
         }
       }
     },
+    "Multipeer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multipeer"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multipeer"
+          }
+        }
+      }
+    },
+    "Multipeer (legacy)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multipeer (legacy)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multipeer (eski)"
+          }
+        }
+      }
+    },
     "Mute": {
       "extractionState": "manual",
       "localizations": {
@@ -562,6 +1429,23 @@
         }
       }
     },
+    "Mute Microphone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mute Microphone"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonu Sessize Al"
+          }
+        }
+      }
+    },
     "Muted": {
       "extractionState": "manual",
       "localizations": {
@@ -574,7 +1458,24 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sessiz"
+            "value": "Sessizde"
+          }
+        }
+      }
+    },
+    "Mutes or unmutes your microphone in Intercom.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mutes or unmutes your microphone in Intercom."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom'da mikrofonunuzu sessize alır veya sesini açar."
           }
         }
       }
@@ -609,6 +1510,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Yakındaki iPhone'lar"
+          }
+        }
+      }
+    },
+    "Network": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ"
+          }
+        }
+      }
+    },
+    "Network (recommended)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network (recommended)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ (önerilen)"
           }
         }
       }
@@ -664,6 +1599,57 @@
         }
       }
     },
+    "Notifications in background": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications in background"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arka plan bildirimleri"
+          }
+        }
+      }
+    },
+    "Off": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapalı"
+          }
+        }
+      }
+    },
+    "On": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Açık"
+          }
+        }
+      }
+    },
     "One moment…": {
       "extractionState": "manual",
       "localizations": {
@@ -677,6 +1663,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bir saniye…"
+          }
+        }
+      }
+    },
+    "Open Intercom on the other iPhone too.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Intercom on the other iPhone too."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone'da da Intercom'u açın."
           }
         }
       }
@@ -715,6 +1718,23 @@
         }
       }
     },
+    "Other network": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other network"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer ağ"
+          }
+        }
+      }
+    },
     "Output route": {
       "extractionState": "manual",
       "localizations": {
@@ -732,6 +1752,23 @@
         }
       }
     },
+    "Pairing code (optional)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing code (optional)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleştirme kodu (isteğe bağlı)"
+          }
+        }
+      }
+    },
     "Peer": {
       "extractionState": "manual",
       "localizations": {
@@ -745,6 +1782,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Karşı taraf"
+          }
+        }
+      }
+    },
+    "Peer app version": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peer app version"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karşı tarafın uygulama sürümü"
           }
         }
       }
@@ -800,6 +1854,23 @@
         }
       }
     },
+    "Playout target": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playout target"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oynatma hedefi"
+          }
+        }
+      }
+    },
     "Protocol": {
       "extractionState": "manual",
       "localizations": {
@@ -851,6 +1922,125 @@
         }
       }
     },
+    "Reconnected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnected"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden bağlanıldı"
+          }
+        }
+      }
+    },
+    "Reconnected to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnected to %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ile yeniden bağlanıldı"
+          }
+        }
+      }
+    },
+    "Reconnecting to %@…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting to %@…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ile yeniden bağlanılıyor…"
+          }
+        }
+      }
+    },
+    "Reconnecting · attempt %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting · attempt %lld"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden bağlanıyor · deneme %lld"
+          }
+        }
+      }
+    },
+    "Reconnecting…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden bağlanıyor…"
+          }
+        }
+      }
+    },
+    "Refreshed every second. Mouth-to-ear assumes the other iPhone's microphone path matches this one.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshed every second. Mouth-to-ear assumes the other iPhone's microphone path matches this one."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Her saniye yenilenir. Ağızdan kulağa tahmini, diğer iPhone'un mikrofon yolunun bununla aynı olduğunu varsayar."
+          }
+        }
+      }
+    },
+    "Render frames": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Render frames"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oynatma örnekleri"
+          }
+        }
+      }
+    },
     "Requesting microphone access…": {
       "extractionState": "manual",
       "localizations": {
@@ -868,6 +2058,40 @@
         }
       }
     },
+    "Restarting (attempt %lld)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restarting (attempt %lld)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden başlatılıyor (deneme %lld)"
+          }
+        }
+      }
+    },
+    "Resume audio": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume audio"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesi devam ettir"
+          }
+        }
+      }
+    },
     "Round trip": {
       "extractionState": "manual",
       "localizations": {
@@ -881,6 +2105,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gidiş-dönüş"
+          }
+        }
+      }
+    },
+    "Round trip %lld ms": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Round trip %lld ms"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gidiş-dönüş %lld ms"
+          }
+        }
+      }
+    },
+    "Running": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çalışıyor"
+          }
+        }
+      }
+    },
+    "Sample rate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sample rate"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Örnekleme hızı"
           }
         }
       }
@@ -936,6 +2211,23 @@
         }
       }
     },
+    "Set Transmit Mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Transmit Mode"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gönderim Modunu Ayarla"
+          }
+        }
+      }
+    },
     "Settings": {
       "extractionState": "manual",
       "localizations": {
@@ -982,7 +2274,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sessizlik"
+            "value": "Konuşma yok"
           }
         }
       }
@@ -1123,6 +2415,40 @@
         }
       }
     },
+    "Stopped": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durduruldu"
+          }
+        }
+      }
+    },
+    "Talk without holding": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talk without holding"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basılı tutmadan konuş"
+          }
+        }
+      }
+    },
     "Talking": {
       "extractionState": "manual",
       "localizations": {
@@ -1157,6 +2483,23 @@
         }
       }
     },
+    "Tap Connect to talk again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Connect to talk again."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden konuşmak için Bağlan'a dokunun."
+          }
+        }
+      }
+    },
     "Tap Start to look for the other iPhone.": {
       "extractionState": "manual",
       "localizations": {
@@ -1170,6 +2513,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diğer iPhone'u aramak için Başlat'a dokunun."
+          }
+        }
+      }
+    },
+    "Tap to stop talking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to stop talking"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durdurmak için dokun"
           }
         }
       }
@@ -1208,6 +2568,74 @@
         }
       }
     },
+    "The automatic buffer follows the measured Wi‑Fi jitter; a fixed higher value survives hiccups better but adds delay. Use Compatible capture only if the microphone does not work. Voice processing removes echo from the loudspeaker; turn it off only with headphones.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The automatic buffer follows the measured Wi‑Fi jitter; a fixed higher value survives hiccups better but adds delay. Use Compatible capture only if the microphone does not work. Voice processing removes echo from the loudspeaker; turn it off only with headphones."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otomatik tampon ölçülen Wi‑Fi dalgalanmasını izler; sabit ve yüksek bir değer takılmalara daha dayanıklıdır ama gecikme ekler. Uyumlu kaydı yalnızca mikrofon çalışmazsa kullanın. Ses işleme hoparlördeki yankıyı giderir; yalnızca kulaklıkla kapatın."
+          }
+        }
+      }
+    },
+    "The other iPhone runs an incompatible version. Install the same build on both.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other iPhone runs an incompatible version. Install the same build on both."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone uyumsuz bir sürüm çalıştırıyor. İki iPhone'a da aynı sürümü yükleyin."
+          }
+        }
+      }
+    },
+    "The other iPhone uses a different pairing code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other iPhone uses a different pairing code."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone farklı bir eşleştirme kodu kullanıyor."
+          }
+        }
+      }
+    },
+    "The other iPhone's audio is paused.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other iPhone's audio is paused."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone'un sesi duraklatıldı."
+          }
+        }
+      }
+    },
     "Transmit": {
       "extractionState": "manual",
       "localizations": {
@@ -1221,6 +2649,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gönderim"
+          }
+        }
+      }
+    },
+    "Transmit Mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmit Mode"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gönderim Modu"
           }
         }
       }
@@ -1276,6 +2721,23 @@
         }
       }
     },
+    "Underruns / s": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Underruns / s"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tampon boşalması / sn"
+          }
+        }
+      }
+    },
     "Unmute": {
       "extractionState": "manual",
       "localizations": {
@@ -1327,6 +2789,23 @@
         }
       }
     },
+    "Voice activated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice activated"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses algılama"
+          }
+        }
+      }
+    },
     "Voice detected": {
       "extractionState": "manual",
       "localizations": {
@@ -1340,6 +2819,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ses algılandı"
+          }
+        }
+      }
+    },
+    "Voice processing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice processing"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses işleme"
           }
         }
       }
@@ -1378,6 +2874,142 @@
         }
       }
     },
+    "Waiting for the app to open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the app to open"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulamanın açılması bekleniyor"
+          }
+        }
+      }
+    },
+    "Waiting for the other iPhone…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the other iPhone…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone bekleniyor…"
+          }
+        }
+      }
+    },
+    "Weak connection…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weak connection…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zayıf bağlantı…"
+          }
+        }
+      }
+    },
+    "Wired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wired"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kablolu"
+          }
+        }
+      }
+    },
+    "Wi‑Fi must be on. No network or internet is needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi‑Fi must be on. No network or internet is needed."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi‑Fi açık olmalı. Bir ağa veya internete bağlanmak gerekmez."
+          }
+        }
+      }
+    },
+    "Wi‑Fi network": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi‑Fi network"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi‑Fi ağı"
+          }
+        }
+      }
+    },
+    "Works without internet or a router: Wi‑Fi must be on, but it does not need to join a network.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works without internet or a router: Wi‑Fi must be on, but it does not need to join a network."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İnternet veya modem olmadan çalışır: Wi‑Fi açık olmalı, ancak bir ağa bağlanması gerekmez."
+          }
+        }
+      }
+    },
+    "Works without internet. Wi‑Fi must be on.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works without internet. Wi‑Fi must be on."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İnternet olmadan çalışır. Wi‑Fi açık olmalı."
+          }
+        }
+      }
+    },
     "You": {
       "extractionState": "manual",
       "localizations": {
@@ -1391,6 +3023,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Siz"
+          }
+        }
+      }
+    },
+    "You are talking without holding.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are talking without holding."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basılı tutmadan konuşuyorsunuz."
           }
         }
       }
@@ -1425,6 +3074,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Adınız"
+          }
+        }
+      }
+    },
+    "in %@ · out %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %1$@ · out %2$@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "giriş %1$@ · çıkış %2$@"
           }
         }
       }

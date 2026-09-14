@@ -3,90 +3,82 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		08834B2F5D4D135D1343766B /* AudioEngineController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AF81F92E5E119DA6DCAD2AF /* AudioEngineController.swift */; };
-		091EDBD0E289D6D7003EAF34 /* MultipeerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFCAF211C3A72CC3F532CBE6 /* MultipeerTransport.swift */; };
-		1573378DAA8252EBE7CC2910 /* IntercomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7248914BBCE4EF2FF201D17B /* IntercomApp.swift */; };
-		175E09CF2AD759E8EFE5A4A0 /* DisplayName.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB449F5E0F4F0E44F0774A79 /* DisplayName.swift */; };
-		18387A31EB5E29D029A4266C /* JitterBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4778FB7AD8A5A0141CF5C51B /* JitterBuffer.swift */; };
-		2FD2542DF9AAA6DCDCBF7754 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFBF8750D3DC6F19960E15B0 /* ContentView.swift */; };
-		372A700206B72D613CFFF55B /* TransmitGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF1C6B2D1814CB7823FC75A5 /* TransmitGate.swift */; };
-		41E48C4986684F8D419B2615 /* PeerElection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB8133A6447179E1684EEE0 /* PeerElection.swift */; };
-		525C67B69232CEA62BE8A509 /* ModePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0C155A172BC26771A5A90A /* ModePicker.swift */; };
-		6D70210F57594319341F6E72 /* TransmitMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED788F291BD2DCDFE0E9FF2 /* TransmitMode.swift */; };
-		8544AD748D93BAB6FD9AE730 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECAA1D4FFB56ED58858FE0E7 /* SettingsView.swift */; };
-		870542D1F99B1642B19C285A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8568EDE38A6773EBDD0F54C5 /* AppSettings.swift */; };
-		8E6F5913394BCACB02C8B691 /* PeerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F640057BFCA5A21EDE9ACEF /* PeerListView.swift */; };
-		8E7DDD2904A8825BB8565135 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 53CEDD935214EA7B1711F7DF /* Localizable.xcstrings */; };
-		8F31FC80EF1AB44F67B48181 /* AudioSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F83368B9D58798AECC14272 /* AudioSessionController.swift */; };
-		90D2AFBC53DC6406EFF7C9F2 /* MicrophonePermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FF6CB0A362B897EC4A7C99 /* MicrophonePermission.swift */; };
-		91B12647DCB0767E07474EF2 /* PeerIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92DC588456B31D60BEF0CF6 /* PeerIdentity.swift */; };
-		93AFFA34A3083CF714A572C9 /* LevelMeterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C7CD4BFC1F0486E9C63FF8 /* LevelMeterView.swift */; };
-		9891B0B3A08EB92837299E54 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 03D6A06F8C7121364B72DFC1 /* InfoPlist.xcstrings */; };
-		9B6B82C9D566AECDD7527915 /* ControlMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9ED88A67D7A98D98F80FA07 /* ControlMessage.swift */; };
-		9FECF6EA5E76956BBE24807F /* TalkButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0949DE07BF418F7E09EF353C /* TalkButton.swift */; };
-		A27C18EF57FA7725F58F49B2 /* FrameChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8AD9058FE959AD087D094D3 /* FrameChunker.swift */; };
-		A527F782F1F38E7845A83711 /* VoiceActivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48868A9522FE09A07DA1BBE3 /* VoiceActivityDetector.swift */; };
-		A649BFAD0AAFB7D717C784D8 /* IntercomProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37140FDAAEA568B945508CF /* IntercomProtocol.swift */; };
-		A8361FA54C2D27C96DB7E4AA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5BAC66BA8F0C557E981BCA8E /* Assets.xcassets */; };
-		B77D46DE683F7C21E36D99AD /* AudioPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A4A861895AF608C33C2FBBA /* AudioPipeline.swift */; };
-		B96BD0AFF4AFF5367BE104DC /* ByteCoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 842B7B12E172EB8F57CFC421 /* ByteCoding.swift */; };
-		C3F7CE1BCA7E74001839CB37 /* StatusCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5294CF8D163D1886CE221C61 /* StatusCard.swift */; };
-		C7943B0182584355794DD29C /* SampleRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E36BECBBF231179CF46DDDE /* SampleRingBuffer.swift */; };
-		CE3EBF4DBFA382CEE1B544FD /* WireMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25BB20F337A6D9F38872AB5A /* WireMessage.swift */; };
-		CFCFAC0E02D8C220E6373CEB /* SequenceNumber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11965DEB777134923168E3D6 /* SequenceNumber.swift */; };
-		D5A9CA889BF11DC072372E86 /* RoundTripEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F530CDF9CC211C50E5FFEB3 /* RoundTripEstimator.swift */; };
-		D7C66D35FD83556B4037680A /* AudioLevel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D4847863201BAD454D79F2 /* AudioLevel.swift */; };
-		DAA4B61B573D102E7051061C /* AudioPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90FDF1076993DD50EA87C1E /* AudioPacket.swift */; };
-		E3373B769AAEE771380E67B8 /* IntercomController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DABB1FAFA808A8E58CCE843 /* IntercomController.swift */; };
-		E68FD93AF5F2FDBA269C6184 /* TransmitMode+UI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77F8C80B9A38C4F637BF1B31 /* TransmitMode+UI.swift */; };
-		EBB31EE0F1E8D681F30C9961 /* MetersCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 782E7465B32B7E7843570BCB /* MetersCard.swift */; };
+		83840A3C6424409BB6F2D9E1 /* IntercomLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E5704728A5534145A07187FC /* IntercomLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6A029C6AC08F4D57A3C08EFE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CA45C7F6EF9E4262B928FC42;
+			remoteInfo = IntercomLiveActivityExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0EA09C4E7BCD4903A8CAC714 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				83840A3C6424409BB6F2D9E1 /* IntercomLiveActivityExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2180D2C9960ABAD6647104A5 /* Intercom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Intercom.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		03D6A06F8C7121364B72DFC1 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
-		0949DE07BF418F7E09EF353C /* TalkButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkButton.swift; sourceTree = "<group>"; };
-		0A4A861895AF608C33C2FBBA /* AudioPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPipeline.swift; sourceTree = "<group>"; };
-		11965DEB777134923168E3D6 /* SequenceNumber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceNumber.swift; sourceTree = "<group>"; };
-		14728DA2A35328C82E9338DE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		1AF81F92E5E119DA6DCAD2AF /* AudioEngineController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineController.swift; sourceTree = "<group>"; };
-		25BB20F337A6D9F38872AB5A /* WireMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireMessage.swift; sourceTree = "<group>"; };
-		2E36BECBBF231179CF46DDDE /* SampleRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleRingBuffer.swift; sourceTree = "<group>"; };
-		3BB8133A6447179E1684EEE0 /* PeerElection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerElection.swift; sourceTree = "<group>"; };
-		3F530CDF9CC211C50E5FFEB3 /* RoundTripEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundTripEstimator.swift; sourceTree = "<group>"; };
-		3F640057BFCA5A21EDE9ACEF /* PeerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerListView.swift; sourceTree = "<group>"; };
-		4778FB7AD8A5A0141CF5C51B /* JitterBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JitterBuffer.swift; sourceTree = "<group>"; };
-		48868A9522FE09A07DA1BBE3 /* VoiceActivityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceActivityDetector.swift; sourceTree = "<group>"; };
-		4DABB1FAFA808A8E58CCE843 /* IntercomController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntercomController.swift; sourceTree = "<group>"; };
-		5294CF8D163D1886CE221C61 /* StatusCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCard.swift; sourceTree = "<group>"; };
-		53CEDD935214EA7B1711F7DF /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		53FF6CB0A362B897EC4A7C99 /* MicrophonePermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermission.swift; sourceTree = "<group>"; };
-		5BAC66BA8F0C557E981BCA8E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		5ED788F291BD2DCDFE0E9FF2 /* TransmitMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransmitMode.swift; sourceTree = "<group>"; };
-		6F83368B9D58798AECC14272 /* AudioSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionController.swift; sourceTree = "<group>"; };
-		7248914BBCE4EF2FF201D17B /* IntercomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntercomApp.swift; sourceTree = "<group>"; };
-		77F8C80B9A38C4F637BF1B31 /* TransmitMode+UI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransmitMode+UI.swift"; sourceTree = "<group>"; };
-		782E7465B32B7E7843570BCB /* MetersCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetersCard.swift; sourceTree = "<group>"; };
-		842B7B12E172EB8F57CFC421 /* ByteCoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ByteCoding.swift; sourceTree = "<group>"; };
-		8568EDE38A6773EBDD0F54C5 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		93D4847863201BAD454D79F2 /* AudioLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevel.swift; sourceTree = "<group>"; };
-		A4C7CD4BFC1F0486E9C63FF8 /* LevelMeterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelMeterView.swift; sourceTree = "<group>"; };
-		A9ED88A67D7A98D98F80FA07 /* ControlMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlMessage.swift; sourceTree = "<group>"; };
-		AFBF8750D3DC6F19960E15B0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		BB449F5E0F4F0E44F0774A79 /* DisplayName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayName.swift; sourceTree = "<group>"; };
-		C90FDF1076993DD50EA87C1E /* AudioPacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPacket.swift; sourceTree = "<group>"; };
-		C92DC588456B31D60BEF0CF6 /* PeerIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerIdentity.swift; sourceTree = "<group>"; };
-		CB0C155A172BC26771A5A90A /* ModePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModePicker.swift; sourceTree = "<group>"; };
-		D8AD9058FE959AD087D094D3 /* FrameChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameChunker.swift; sourceTree = "<group>"; };
-		ECAA1D4FFB56ED58858FE0E7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		EF1C6B2D1814CB7823FC75A5 /* TransmitGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransmitGate.swift; sourceTree = "<group>"; };
-		EFCAF211C3A72CC3F532CBE6 /* MultipeerTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultipeerTransport.swift; sourceTree = "<group>"; };
-		F37140FDAAEA568B945508CF /* IntercomProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntercomProtocol.swift; sourceTree = "<group>"; };
+		E5704728A5534145A07187FC /* IntercomLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = IntercomLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		045BED5189E14C4691E58848 /* Exceptions for "Intercom" folder in "Intercom" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/Info.plist,
+			);
+			target = 14E74B7AE36C7CFF3BFD12A3 /* Intercom */;
+		};
+		EF84E6B9AD2A4F13867886AC /* Exceptions for "IntercomLiveActivity" folder in "IntercomLiveActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CA45C7F6EF9E4262B928FC42 /* IntercomLiveActivityExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		39124F1BB98B43A798E585FC /* Intercom */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				045BED5189E14C4691E58848 /* Exceptions for "Intercom" folder in "Intercom" target */,
+			);
+			path = Intercom;
+			sourceTree = "<group>";
+		};
+		47EBCCDC07F3464B9E3C837A /* IntercomLiveActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EF84E6B9AD2A4F13867886AC /* Exceptions for "IntercomLiveActivity" folder in "IntercomLiveActivityExtension" target */,
+			);
+			path = IntercomLiveActivity;
+			sourceTree = "<group>";
+		};
+		F79E6D12C89F48D9AC00F85A /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		424153ED3CD079DB4DB459AF /* Frameworks */ = {
@@ -96,124 +88,33 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FD3AFBB95D1F4161B7070F56 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		518DA81DB9B99529C0C0AEBE = {
-			isa = PBXGroup;
-			children = (
-				286A55AB35FBB43EB486BA86 /* Intercom */,
-				2F3A6B1E78F896718625FF06 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
 		2F3A6B1E78F896718625FF06 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				2180D2C9960ABAD6647104A5 /* Intercom.app */,
+				E5704728A5534145A07187FC /* IntercomLiveActivityExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		286A55AB35FBB43EB486BA86 /* Intercom */ = {
+		518DA81DB9B99529C0C0AEBE = {
 			isa = PBXGroup;
 			children = (
-				6F00F3C9959EAD455189E829 /* App */,
-				D86E8AB19EF4323F87E8DA21 /* Audio */,
-				37F0502F0350B43EE243F728 /* Core */,
-				1A52ECEF5D2CEA64B5FF7E48 /* Model */,
-				F9C869E0421AA9B7AEC346FF /* Networking */,
-				747401D29014C0A2F344F43D /* Resources */,
-				026F817033C80E5E089A7CCA /* Views */,
+				39124F1BB98B43A798E585FC /* Intercom */,
+				47EBCCDC07F3464B9E3C837A /* IntercomLiveActivity */,
+				F79E6D12C89F48D9AC00F85A /* Shared */,
+				2F3A6B1E78F896718625FF06 /* Products */,
 			);
-			path = Intercom;
-			sourceTree = "<group>";
-		};
-		6F00F3C9959EAD455189E829 /* App */ = {
-			isa = PBXGroup;
-			children = (
-				14728DA2A35328C82E9338DE /* Info.plist */,
-				7248914BBCE4EF2FF201D17B /* IntercomApp.swift */,
-			);
-			path = App;
-			sourceTree = "<group>";
-		};
-		D86E8AB19EF4323F87E8DA21 /* Audio */ = {
-			isa = PBXGroup;
-			children = (
-				1AF81F92E5E119DA6DCAD2AF /* AudioEngineController.swift */,
-				6F83368B9D58798AECC14272 /* AudioSessionController.swift */,
-				53FF6CB0A362B897EC4A7C99 /* MicrophonePermission.swift */,
-			);
-			path = Audio;
-			sourceTree = "<group>";
-		};
-		37F0502F0350B43EE243F728 /* Core */ = {
-			isa = PBXGroup;
-			children = (
-				93D4847863201BAD454D79F2 /* AudioLevel.swift */,
-				C90FDF1076993DD50EA87C1E /* AudioPacket.swift */,
-				842B7B12E172EB8F57CFC421 /* ByteCoding.swift */,
-				A9ED88A67D7A98D98F80FA07 /* ControlMessage.swift */,
-				BB449F5E0F4F0E44F0774A79 /* DisplayName.swift */,
-				D8AD9058FE959AD087D094D3 /* FrameChunker.swift */,
-				F37140FDAAEA568B945508CF /* IntercomProtocol.swift */,
-				4778FB7AD8A5A0141CF5C51B /* JitterBuffer.swift */,
-				3BB8133A6447179E1684EEE0 /* PeerElection.swift */,
-				3F530CDF9CC211C50E5FFEB3 /* RoundTripEstimator.swift */,
-				2E36BECBBF231179CF46DDDE /* SampleRingBuffer.swift */,
-				11965DEB777134923168E3D6 /* SequenceNumber.swift */,
-				EF1C6B2D1814CB7823FC75A5 /* TransmitGate.swift */,
-				5ED788F291BD2DCDFE0E9FF2 /* TransmitMode.swift */,
-				48868A9522FE09A07DA1BBE3 /* VoiceActivityDetector.swift */,
-				25BB20F337A6D9F38872AB5A /* WireMessage.swift */,
-			);
-			path = Core;
-			sourceTree = "<group>";
-		};
-		1A52ECEF5D2CEA64B5FF7E48 /* Model */ = {
-			isa = PBXGroup;
-			children = (
-				8568EDE38A6773EBDD0F54C5 /* AppSettings.swift */,
-				0A4A861895AF608C33C2FBBA /* AudioPipeline.swift */,
-				4DABB1FAFA808A8E58CCE843 /* IntercomController.swift */,
-			);
-			path = Model;
-			sourceTree = "<group>";
-		};
-		F9C869E0421AA9B7AEC346FF /* Networking */ = {
-			isa = PBXGroup;
-			children = (
-				EFCAF211C3A72CC3F532CBE6 /* MultipeerTransport.swift */,
-				C92DC588456B31D60BEF0CF6 /* PeerIdentity.swift */,
-			);
-			path = Networking;
-			sourceTree = "<group>";
-		};
-		747401D29014C0A2F344F43D /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				5BAC66BA8F0C557E981BCA8E /* Assets.xcassets */,
-				03D6A06F8C7121364B72DFC1 /* InfoPlist.xcstrings */,
-				53CEDD935214EA7B1711F7DF /* Localizable.xcstrings */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		026F817033C80E5E089A7CCA /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				AFBF8750D3DC6F19960E15B0 /* ContentView.swift */,
-				A4C7CD4BFC1F0486E9C63FF8 /* LevelMeterView.swift */,
-				782E7465B32B7E7843570BCB /* MetersCard.swift */,
-				CB0C155A172BC26771A5A90A /* ModePicker.swift */,
-				3F640057BFCA5A21EDE9ACEF /* PeerListView.swift */,
-				ECAA1D4FFB56ED58858FE0E7 /* SettingsView.swift */,
-				5294CF8D163D1886CE221C61 /* StatusCard.swift */,
-				0949DE07BF418F7E09EF353C /* TalkButton.swift */,
-				77F8C80B9A38C4F637BF1B31 /* TransmitMode+UI.swift */,
-			);
-			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -226,15 +127,46 @@
 				7A70D71C385290AF96BF1031 /* Sources */,
 				424153ED3CD079DB4DB459AF /* Frameworks */,
 				285BB1C1430063331E9F5DD0 /* Resources */,
+				0EA09C4E7BCD4903A8CAC714 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				35E5874243474AD5A5FF326A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				39124F1BB98B43A798E585FC /* Intercom */,
+				F79E6D12C89F48D9AC00F85A /* Shared */,
+			);
+			name = Intercom;
+			packageProductDependencies = (
+			);
+			productName = Intercom;
+			productReference = 2180D2C9960ABAD6647104A5 /* Intercom.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CA45C7F6EF9E4262B928FC42 /* IntercomLiveActivityExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 255B6D07D0634FC7BD09FCDC /* Build configuration list for PBXNativeTarget "IntercomLiveActivityExtension" */;
+			buildPhases = (
+				4086C632B53B41959A2FCCD4 /* Sources */,
+				FD3AFBB95D1F4161B7070F56 /* Frameworks */,
+				7560B601D70B4586977F76F4 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = Intercom;
-			productName = Intercom;
-			productReference = 2180D2C9960ABAD6647104A5 /* Intercom.app */;
-			productType = "com.apple.product-type.application";
+			fileSystemSynchronizedGroups = (
+				47EBCCDC07F3464B9E3C837A /* IntercomLiveActivity */,
+				F79E6D12C89F48D9AC00F85A /* Shared */,
+			);
+			name = IntercomLiveActivityExtension;
+			packageProductDependencies = (
+			);
+			productName = IntercomLiveActivityExtension;
+			productReference = E5704728A5534145A07187FC /* IntercomLiveActivityExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -243,16 +175,18 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1500;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					14E74B7AE36C7CFF3BFD12A3 = {
 						CreatedOnToolsVersion = 15.0;
 					};
+					CA45C7F6EF9E4262B928FC42 = {
+						CreatedOnToolsVersion = 26.0;
+					};
 				};
 			};
 			buildConfigurationList = 7EF2517A8FE63F4681EC5EEA /* Build configuration list for PBXProject "Intercom" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -261,11 +195,14 @@
 				tr,
 			);
 			mainGroup = 518DA81DB9B99529C0C0AEBE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F3A6B1E78F896718625FF06 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				14E74B7AE36C7CFF3BFD12A3 /* Intercom */,
+				CA45C7F6EF9E4262B928FC42 /* IntercomLiveActivityExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -275,178 +212,98 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8E7DDD2904A8825BB8565135 /* Localizable.xcstrings in Resources */,
-				9891B0B3A08EB92837299E54 /* InfoPlist.xcstrings in Resources */,
-				A8361FA54C2D27C96DB7E4AA /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7560B601D70B4586977F76F4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		4086C632B53B41959A2FCCD4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7A70D71C385290AF96BF1031 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				08834B2F5D4D135D1343766B /* AudioEngineController.swift in Sources */,
-				091EDBD0E289D6D7003EAF34 /* MultipeerTransport.swift in Sources */,
-				1573378DAA8252EBE7CC2910 /* IntercomApp.swift in Sources */,
-				175E09CF2AD759E8EFE5A4A0 /* DisplayName.swift in Sources */,
-				18387A31EB5E29D029A4266C /* JitterBuffer.swift in Sources */,
-				2FD2542DF9AAA6DCDCBF7754 /* ContentView.swift in Sources */,
-				372A700206B72D613CFFF55B /* TransmitGate.swift in Sources */,
-				41E48C4986684F8D419B2615 /* PeerElection.swift in Sources */,
-				525C67B69232CEA62BE8A509 /* ModePicker.swift in Sources */,
-				6D70210F57594319341F6E72 /* TransmitMode.swift in Sources */,
-				8544AD748D93BAB6FD9AE730 /* SettingsView.swift in Sources */,
-				870542D1F99B1642B19C285A /* AppSettings.swift in Sources */,
-				8E6F5913394BCACB02C8B691 /* PeerListView.swift in Sources */,
-				8F31FC80EF1AB44F67B48181 /* AudioSessionController.swift in Sources */,
-				90D2AFBC53DC6406EFF7C9F2 /* MicrophonePermission.swift in Sources */,
-				91B12647DCB0767E07474EF2 /* PeerIdentity.swift in Sources */,
-				93AFFA34A3083CF714A572C9 /* LevelMeterView.swift in Sources */,
-				9B6B82C9D566AECDD7527915 /* ControlMessage.swift in Sources */,
-				9FECF6EA5E76956BBE24807F /* TalkButton.swift in Sources */,
-				A27C18EF57FA7725F58F49B2 /* FrameChunker.swift in Sources */,
-				A527F782F1F38E7845A83711 /* VoiceActivityDetector.swift in Sources */,
-				A649BFAD0AAFB7D717C784D8 /* IntercomProtocol.swift in Sources */,
-				B77D46DE683F7C21E36D99AD /* AudioPipeline.swift in Sources */,
-				B96BD0AFF4AFF5367BE104DC /* ByteCoding.swift in Sources */,
-				C3F7CE1BCA7E74001839CB37 /* StatusCard.swift in Sources */,
-				C7943B0182584355794DD29C /* SampleRingBuffer.swift in Sources */,
-				CE3EBF4DBFA382CEE1B544FD /* WireMessage.swift in Sources */,
-				CFCFAC0E02D8C220E6373CEB /* SequenceNumber.swift in Sources */,
-				D5A9CA889BF11DC072372E86 /* RoundTripEstimator.swift in Sources */,
-				D7C66D35FD83556B4037680A /* AudioLevel.swift in Sources */,
-				DAA4B61B573D102E7051061C /* AudioPacket.swift in Sources */,
-				E3373B769AAEE771380E67B8 /* IntercomController.swift in Sources */,
-				E68FD93AF5F2FDBA269C6184 /* TransmitMode+UI.swift in Sources */,
-				EBB31EE0F1E8D681F30C9961 /* MetersCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin XCBuildConfiguration section */
-		C02C0D246B9DB7EDD7178588 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MTL_FAST_MATH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_TESTABILITY = YES;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				ONLY_ACTIVE_ARCH = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-			};
-			name = Debug;
+/* Begin PBXTargetDependency section */
+		35E5874243474AD5A5FF326A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CA45C7F6EF9E4262B928FC42 /* IntercomLiveActivityExtension */;
+			targetProxy = 6A029C6AC08F4D57A3C08EFE /* PBXContainerItemProxy */;
 		};
-		7A11D79DD6558B1B4289D4C6 /* Release */ = {
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		198868CCFFFE4544AE7A335D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MTL_FAST_MATH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				VALIDATE_PRODUCT = YES;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = IntercomLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).LiveActivity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		3D316E928D62D968BC81EBFF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Intercom/App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Intercom looks for the other iPhone on your local network to connect directly, without the internet.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Intercom needs the microphone so the other iPhone can hear you.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -456,74 +313,452 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Intercom/App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Intercom looks for the other iPhone on your local network to connect directly, without the internet.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Intercom needs the microphone so the other iPhone can hear you.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.gkaragoz.p2pintercom;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
-		3D316E928D62D968BC81EBFF /* Release */ = {
+		7A11D79DD6558B1B4289D4C6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_BUNDLE_ID = com.gkaragoz.p2pintercom;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = YLKU8294NU;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		85718FAE19F34C88881404BA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = IntercomLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).LiveActivity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BC7B94104BE448478786471B /* Debug-Phone2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_BUNDLE_ID = com.gkaragoz.p2pintercom2;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = MSBZ3RN6Q9;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = "Debug-Phone2";
+		};
+		C02C0D246B9DB7EDD7178588 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_BUNDLE_ID = com.gkaragoz.p2pintercom;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = YLKU8294NU;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C73D243DA1CD45078684E3A3 /* Debug-Phone2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = IntercomLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).LiveActivity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug-Phone2";
+		};
+		D00D7C49F9DF40FF834CFD0F /* Release-Phone2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_BUNDLE_ID = com.gkaragoz.p2pintercom2;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = MSBZ3RN6Q9;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = "Release-Phone2";
+		};
+		E809FE00CF864CCDBDC91DB8 /* Debug-Phone2 */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Intercom/App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Intercom looks for the other iPhone on your local network to connect directly, without the internet.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Intercom needs the microphone so the other iPhone can hear you.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.gkaragoz.p2pintercom;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
-			name = Release;
+			name = "Debug-Phone2";
+		};
+		EA9AAF4876264F228E52C664 /* Release-Phone2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Intercom/App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Intercom looks for the other iPhone on your local network to connect directly, without the internet.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Intercom needs the microphone so the other iPhone can hear you.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release-Phone2";
+		};
+		F86432A0622C4E4A971B4130 /* Release-Phone2 */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = IntercomLiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Intercom;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).LiveActivity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release-Phone2";
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		255B6D07D0634FC7BD09FCDC /* Build configuration list for PBXNativeTarget "IntercomLiveActivityExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				85718FAE19F34C88881404BA /* Debug */,
+				198868CCFFFE4544AE7A335D /* Release */,
+				C73D243DA1CD45078684E3A3 /* Debug-Phone2 */,
+				F86432A0622C4E4A971B4130 /* Release-Phone2 */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7EF2517A8FE63F4681EC5EEA /* Build configuration list for PBXProject "Intercom" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C02C0D246B9DB7EDD7178588 /* Debug */,
 				7A11D79DD6558B1B4289D4C6 /* Release */,
+				BC7B94104BE448478786471B /* Debug-Phone2 */,
+				D00D7C49F9DF40FF834CFD0F /* Release-Phone2 */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -533,6 +768,8 @@
 			buildConfigurations = (
 				472FC1E7F0026BEDEF2DAD09 /* Debug */,
 				3D316E928D62D968BC81EBFF /* Release */,
+				E809FE00CF864CCDBDC91DB8 /* Debug-Phone2 */,
+				EA9AAF4876264F228E52C664 /* Release-Phone2 */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
