@@ -134,11 +134,23 @@ enum PeerCompatibility: Equatable, Sendable {
 }
 
 /// A peer as seen through discovery (or a HELLO from a peer discovery never reported).
+///
+/// `capabilities` is what the peer last claimed: the `c` TXT entry until a handshake, then the
+/// HELLO / HELLO_ACK value (authoritative, since the TXT record is static for a session and a
+/// Multipeer peer has no TXT at all). A legacy peer that never sent the word reads as 0, so every
+/// `supports…` accessor is `false` for it and the sender falls back to the legacy behaviour.
 struct PeerAdvert: Equatable, Sendable {
     var id: PeerID
     var displayName: String
     var protocolVersion: Int?
     var compatibility: PeerCompatibility
+    /// `IntercomProtocol.Network.Capability` bits; 0 when the peer did not say.
+    var capabilities: UInt32 = 0
+
+    /// The peer decodes every `AudioPacket.Codec`, not only 16 kHz.
+    var supportsMultiRateAudio: Bool {
+        capabilities & IntercomProtocol.Network.Capability.multiRateAudio != 0
+    }
 }
 
 /// Per-peer link state reported to the controller.

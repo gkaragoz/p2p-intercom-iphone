@@ -13,9 +13,29 @@ import Foundation
 ///     10  sample count (UInt16)
 ///     12  samples (Int16 × count)
 struct AudioPacket: Equatable {
-    enum Codec: UInt8 {
-        /// Uncompressed 16 kHz mono 16-bit PCM.
+    /// Uncompressed mono 16-bit PCM at one of the `WireRate`s; the byte says which. Every codec
+    /// carries 20 ms per packet, so the sample count follows from the rate.
+    enum Codec: UInt8, CaseIterable, Sendable {
+        /// 16 kHz: the original wire format, understood by every version.
         case pcm16Mono16k = 1
+        /// 8 kHz. This and the following codecs need `IntercomProtocol.Network.Capability.multiRateAudio`.
+        case pcm16Mono8k = 2
+        /// 24 kHz.
+        case pcm16Mono24k = 3
+        /// 32 kHz.
+        case pcm16Mono32k = 4
+
+        var sampleRate: Int {
+            switch self {
+            case .pcm16Mono8k: return 8_000
+            case .pcm16Mono16k: return 16_000
+            case .pcm16Mono24k: return 24_000
+            case .pcm16Mono32k: return 32_000
+            }
+        }
+
+        /// Samples in one 20 ms frame at this codec's rate.
+        var frameSamples: Int { sampleRate / IntercomProtocol.framesPerSecond }
     }
 
     static let magic0: UInt8 = 0x49

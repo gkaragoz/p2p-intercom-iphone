@@ -9,6 +9,8 @@ import Synchronization
 /// Handed to the worker once (`CaptureWorker.setSource`) and then used only by the worker thread.
 final class CaptureSource: @unchecked Sendable {
     let ring: CaptureRing
+    /// The rate the converter produces; sets the frame size the worker re-blocks into.
+    let wireRate: WireRate
     fileprivate let converter: AVAudioConverter
     fileprivate let input: AVAudioPCMBuffer
     fileprivate let output: AVAudioPCMBuffer
@@ -16,7 +18,10 @@ final class CaptureSource: @unchecked Sendable {
     /// Worker samples per conversion round.
     private static let chunkFrames: AVAudioFrameCount = 4_096
 
-    init(sampleRate: Double, wireFormat: AVAudioFormat, counters: AudioMetricsCounters) throws {
+    /// Samples per 20 ms frame at `wireRate`.
+    var frameSamples: Int { wireRate.frameSamples }
+
+    init(sampleRate: Double, wireRate: WireRate, wireFormat: AVAudioFormat, counters: AudioMetricsCounters) throws {
         guard sampleRate > 0,
               let monoFloat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate,
                                             channels: 1, interleaved: false),
@@ -30,6 +35,7 @@ final class CaptureSource: @unchecked Sendable {
             throw AudioEngineError.converterUnavailable
         }
         ring = CaptureRing(sampleRate: sampleRate, counters: counters)
+        self.wireRate = wireRate
         self.converter = converter
         self.input = input
         self.output = output
@@ -41,8 +47,13 @@ final class CaptureSource: @unchecked Sendable {
 /// The real-time capture callback only copies samples into a `CaptureRing`. This worker polls the
 /// ring every `pollInterval` (polling instead of being woken keeps the real-time thread free of
 /// semaphores and dispatch calls, at a cost of 0–5 ms), converts with a reused `AVAudioConverter`
-/// (not real-time safe, so it must never run in the callback), re-blocks into frames and hands
-/// them to `onFrame`, which gates and sends them. Allocation and locks are fine here.
+/// (not real-time safe, so it must never run in the callback), re-blocks into frames of the
+/// source's wire rate, optionally runs them through a `VoiceEffectProcessor` (the transmit effect
+/// and microphone EQ the peer hears) and hands them to `onFrame`, which gates and sends them.
+/// Allocation and locks are fine here.
+///
+/// The level passed to `onFrame` is measured on the *raw* frame, before the processor, so the
+/// voice-activation threshold and the input meter mean the same whatever effect is on.
 final class CaptureWorker: @unchecked Sendable {
     typealias FrameHandler = @Sendable (_ samples: [Int16], _ levelDB: Float) -> Void
 
@@ -54,6 +65,8 @@ final class CaptureWorker: @unchecked Sendable {
     /// Guarded by `lock`.
     private var pendingSource: CaptureSource?
     private var sourceGeneration = 0
+    private var pendingProcessor: VoiceEffectProcessor?
+    private var processorGeneration = 0
     private var handler: FrameHandler?
     private var thread: Thread?
     private var exited: DispatchSemaphore?
@@ -74,6 +87,16 @@ final class CaptureWorker: @unchecked Sendable {
         lock.withLock {
             pendingSource = source
             sourceGeneration &+= 1
+        }
+    }
+
+    /// Makes the worker run every frame through `processor` (or none) from the next frame on. The
+    /// previous processor is released on the worker thread, which is fine: its teardown is not
+    /// real-time work and the worker is not a real-time thread.
+    func setProcessor(_ processor: VoiceEffectProcessor?) {
+        lock.withLock {
+            pendingProcessor = processor
+            processorGeneration &+= 1
         }
     }
 
@@ -113,6 +136,8 @@ final class CaptureWorker: @unchecked Sendable {
     private func run() {
         var source: CaptureSource?
         var generation = -1
+        var processor: VoiceEffectProcessor?
+        var effectGeneration = -1
         var chunker = FrameChunker(frameSize: IntercomProtocol.frameSamples)
         var loggedConversionError = false
         let feed = ConverterFeed()
@@ -123,9 +148,19 @@ final class CaptureWorker: @unchecked Sendable {
                 if generation != sourceGeneration {
                     generation = sourceGeneration
                     source = pendingSource
-                    chunker.reset()
+                    // A new wire rate means a new frame size; the partial frame of the old source
+                    // is dropped either way (it was captured before the rebuild).
+                    if let source, source.frameSamples != chunker.frameSize {
+                        chunker = FrameChunker(frameSize: source.frameSamples)
+                    } else {
+                        chunker.reset()
+                    }
                     source?.converter.reset()
                     loggedConversionError = false
+                }
+                if effectGeneration != processorGeneration {
+                    effectGeneration = processorGeneration
+                    processor = pendingProcessor
                 }
                 let handler = self.handler
                 lock.unlock()
@@ -174,7 +209,17 @@ final class CaptureWorker: @unchecked Sendable {
                     counters.deliveredFrames.add(frames.count, ordering: .relaxed)
                     guard let handler else { continue }
                     for frame in frames {
-                        handler(frame, AudioLevel.decibels(fromLinear: AudioLevel.rms(frame)))
+                        // Level from the raw frame: VOX and the meter must not follow the effect.
+                        let levelDB = AudioLevel.decibels(fromLinear: AudioLevel.rms(frame))
+                        var out = frame
+                        if let processor, processor.frameSamples == frame.count {
+                            out = processor.process(frame)
+                            if out.count != frame.count {
+                                // Contract violation; the raw frame keeps the stream whole.
+                                out = frame
+                            }
+                        }
+                        handler(out, levelDB)
                     }
                 }
             }

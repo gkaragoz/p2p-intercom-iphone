@@ -20,6 +20,13 @@ final class AppSettings: ObservableObject {
         static let voiceProcessing = "settings.voiceProcessing"
         static let notificationsEnabled = "settings.notificationsEnabled"
         static let audioCuesEnabled = "settings.audioCuesEnabled"
+        static let wireRate = "settings.wireRate"
+        static let latencyProfile = "settings.latencyProfile"
+        static let transmitEffect = "settings.transmitEffect"
+        static let transmitEQ = "settings.transmitEQ"
+        static let playbackEQ = "settings.playbackEQ"
+        static let sidetone = "settings.sidetone"
+        static let sidetoneLevel = "settings.sidetoneLevel"
     }
 
     static let jitterRangeMs: ClosedRange<Double> = 20...300
@@ -53,6 +60,48 @@ final class AppSettings: ObservableObject {
     /// Echo cancellation and automatic gain control. Off only makes sense with headphones.
     @Published var voiceProcessingEnabled: Bool {
         didSet { defaults.set(voiceProcessingEnabled, forKey: Key.voiceProcessing) }
+    }
+
+    /// Audio quality: the sample rate captured, sent over the wire and played back, in both
+    /// directions. Rates other than the standard 16 kHz need this version of the app on both phones;
+    /// with an older peer the controller falls back to the standard rate on its own.
+    @Published var wireRate: WireRate {
+        didSet { defaults.set(wireRate.rawValue, forKey: Key.wireRate) }
+    }
+
+    /// How much delay is traded for robustness: bounds the automatic playout delay and sets the
+    /// hardware I/O buffer. The fixed playout slider is independent of it.
+    @Published var latencyProfile: LatencyProfile {
+        didSet { defaults.set(latencyProfile.rawValue, forKey: Key.latencyProfile) }
+    }
+
+    /// Voice effect on this microphone: what the *peer* hears. Applied before sending.
+    @Published var transmitEffect: VoiceEffectPreset {
+        didSet { defaults.set(transmitEffect.rawValue, forKey: Key.transmitEffect) }
+    }
+
+    /// Equaliser on this microphone: what the *peer* hears. Applied before sending, after the effect.
+    @Published var transmitEQ: EQPreset {
+        didSet { defaults.set(transmitEQ.rawValue, forKey: Key.transmitEQ) }
+    }
+
+    /// Equaliser on the peer's voice as heard here. Local only; the peer is not affected.
+    @Published var playbackEQ: EQPreset {
+        didSet { defaults.set(playbackEQ.rawValue, forKey: Key.playbackEQ) }
+    }
+
+    /// Hear the own microphone in the headset with the lowest delay the hardware allows (the raw
+    /// microphone, not the effect the peer hears). Off by default. Only sounds on a wired headset or
+    /// Bluetooth: on the loudspeaker or the receiver the microphone would pick it up again. A change
+    /// rebuilds the audio graph, which the peer hears as a short gap.
+    @Published var sidetone: Bool {
+        didSet { defaults.set(sidetone, forKey: Key.sidetone) }
+    }
+
+    /// Sidetone gain, 0...1. Half by default: loud enough to hear oneself, quiet enough not to
+    /// drown the peer.
+    @Published var sidetoneLevel: Double {
+        didSet { defaults.set(sidetoneLevel, forKey: Key.sidetoneLevel) }
     }
 
     /// Microphone level (dBFS) above which voice-activated mode starts transmitting.
@@ -109,26 +158,50 @@ final class AppSettings: ObservableObject {
         audioCuesEnabled = (defaults.object(forKey: Key.audioCuesEnabled) as? Bool) ?? true
         transportKind = defaults.string(forKey: Key.transportKind).flatMap(TransportKind.init(rawValue:)) ?? .network
         pairingCode = defaults.string(forKey: Key.pairingCode) ?? ""
+        wireRate = defaults.string(forKey: Key.wireRate).flatMap(WireRate.init(rawValue:)) ?? .standard
+        latencyProfile = defaults.string(forKey: Key.latencyProfile).flatMap(LatencyProfile.init(rawValue:)) ?? .balanced
+        transmitEffect = defaults.string(forKey: Key.transmitEffect).flatMap(VoiceEffectPreset.init(rawValue:)) ?? .off
+        transmitEQ = defaults.string(forKey: Key.transmitEQ).flatMap(EQPreset.init(rawValue:)) ?? .off
+        playbackEQ = defaults.string(forKey: Key.playbackEQ).flatMap(EQPreset.init(rawValue:)) ?? .off
+        sidetone = (defaults.object(forKey: Key.sidetone) as? Bool) ?? false
+        sidetoneLevel = min(max((defaults.object(forKey: Key.sidetoneLevel) as? Double) ?? 0.5, 0), 1)
     }
 
+    /// The jitter buffer for the *wanted* wire rate. The controller uses the static form with the
+    /// rate actually in effect, which a legacy peer can pin to the standard rate.
     var jitterConfiguration: JitterBuffer.Configuration {
-        Self.jitterConfiguration(targetMs: jitterTargetMs, adaptive: playoutAuto)
+        Self.jitterConfiguration(targetMs: jitterTargetMs, adaptive: playoutAuto, wireRate: wireRate,
+                                 profile: latencyProfile)
     }
 
+    /// `JitterBuffer.Configuration.intercom` (Core, pinned by a test: `(.standard, .balanced)` is the
+    /// pre-preset configuration exactly).
+    ///
     /// - Parameters:
     ///   - targetMs: fixed playout delay, used when `adaptive` is off.
-    ///   - adaptive: follow `PlayoutDelayEstimator` (40–200 ms); the cap is raised to fit its ceiling.
-    static func jitterConfiguration(targetMs: Double, adaptive: Bool) -> JitterBuffer.Configuration {
-        var configuration = JitterBuffer.Configuration.default
-        let frames = Int((targetMs / (IntercomProtocol.frameDuration * 1000)).rounded())
-        configuration.targetDelayFrames = max(1, frames)
-        configuration.adaptiveTarget = adaptive
-        configuration.maxDelayFrames = max(configuration.targetDelayFrames + 4, 12)
-        return configuration.normalized()
+    ///   - adaptive: follow `PlayoutDelayEstimator` between the profile's floor and ceiling.
+    ///   - wireRate: frame size, sample rate and crossfade length of the buffer.
+    ///   - profile: bounds of the adaptive estimator.
+    static func jitterConfiguration(targetMs: Double, adaptive: Bool, wireRate: WireRate,
+                                    profile: LatencyProfile) -> JitterBuffer.Configuration {
+        .intercom(targetMs: targetMs, adaptive: adaptive, wireRate: wireRate, profile: profile)
     }
 
+    /// The engine configuration for the *wanted* wire rate; see `audioEngineConfiguration(wireRate:)`.
     var audioEngineConfiguration: AudioEngineController.Configuration {
-        AudioEngineController.Configuration(captureMode: captureMode, voiceProcessing: voiceProcessingEnabled)
+        audioEngineConfiguration(wireRate: wireRate)
+    }
+
+    /// The engine configuration with `wireRate` in place of the setting, for the rate actually in
+    /// effect (a legacy peer pins it to the standard rate).
+    func audioEngineConfiguration(wireRate: WireRate) -> AudioEngineController.Configuration {
+        AudioEngineController.Configuration(captureMode: captureMode,
+                                            voiceProcessing: voiceProcessingEnabled,
+                                            wireRate: wireRate,
+                                            ioBufferDuration: latencyProfile.ioBufferDuration,
+                                            transmitEffect: transmitEffect,
+                                            transmitEQ: transmitEQ,
+                                            sidetone: sidetone)
     }
 
     /// Since iOS 16 `UIDevice.name` is just "iPhone" for most apps, so a short random suffix is

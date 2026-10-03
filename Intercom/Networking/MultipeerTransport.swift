@@ -90,6 +90,9 @@ final class MultipeerTransport: NSObject, PeerTransport, @unchecked Sendable {
         let id: PeerID
         var token: String?
         var protocolVersion: Int?
+        /// `IntercomProtocol.Network.Capability` bits from the peer's discovery info; 0 for a build
+        /// that predates the key.
+        var capabilities: UInt32 = 0
         /// Listed by discovery right now.
         var isListed = false
         var attempt: Attempt?
@@ -130,7 +133,8 @@ final class MultipeerTransport: NSObject, PeerTransport, @unchecked Sendable {
         }
 
         var advert: PeerAdvert {
-            PeerAdvert(id: id, displayName: mcPeer.displayName, protocolVersion: protocolVersion, compatibility: compatibility)
+            PeerAdvert(id: id, displayName: mcPeer.displayName, protocolVersion: protocolVersion,
+                       compatibility: compatibility, capabilities: capabilities)
         }
 
         func cancelTimers() {
@@ -813,6 +817,7 @@ final class MultipeerTransport: NSObject, PeerTransport, @unchecked Sendable {
             IntercomProtocol.DiscoveryKey.name: advertisedName,
             IntercomProtocol.DiscoveryKey.version: String(IntercomProtocol.version),
             IntercomProtocol.DiscoveryKey.epoch: String(epoch),
+            IntercomProtocol.DiscoveryKey.capabilities: String(IntercomProtocol.Network.Capability.multiRateAudio, radix: 16),
         ]
         let advertiser = MCNearbyServiceAdvertiser(peer: mcPeerID, discoveryInfo: discoveryInfo,
                                                    serviceType: IntercomProtocol.serviceType)
@@ -983,12 +988,17 @@ extension MultipeerTransport: MCNearbyServiceBrowserDelegate {
             possiblyStale.remove(peerID)
             let wasListed = record.isListed
             record.isListed = true
+            // Discovery info is the only place a Multipeer peer states its capabilities, so a re-listing
+            // (an updated build restarts its advertiser) may change them.
+            let capabilities = info?[IntercomProtocol.DiscoveryKey.capabilities].flatMap { UInt32($0, radix: 16) } ?? 0
+            let capabilitiesChanged = record.capabilities != capabilities
+            record.capabilities = capabilities
             noteRemoteEpoch(record, info?[IntercomProtocol.DiscoveryKey.epoch].flatMap { UInt32($0) })
             Self.log.info("""
                 found \(peerID.displayName, privacy: .public) (\(record.id.rawValue, privacy: .public), \
-                v\(version.map(String.init) ?? "?", privacy: .public))
+                v\(version.map(String.init) ?? "?", privacy: .public), c\(String(capabilities, radix: 16), privacy: .public))
                 """)
-            if isNew || !wasListed {
+            if isNew || !wasListed || capabilitiesChanged {
                 emit(.peerDiscovered(record.advert))
             }
             if record.reportedState == nil {

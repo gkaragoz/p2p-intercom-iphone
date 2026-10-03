@@ -239,6 +239,23 @@
         }
       }
     },
+    "Audio quality": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio quality"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses kalitesi"
+          }
+        }
+      }
+    },
     "Audio state": {
       "extractionState": "manual",
       "localizations": {
@@ -269,6 +286,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Otomatik oynatma tamponu"
+          }
+        }
+      }
+    },
+    "Balanced": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balanced"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dengeli"
+          }
+        }
+      }
+    },
+    "Bass boost": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bass boost"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bas güçlendirme"
           }
         }
       }
@@ -320,6 +371,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tamponda"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vazgeç"
           }
         }
       }
@@ -392,6 +460,23 @@
         }
       }
     },
+    "Cave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cave"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mağara"
+          }
+        }
+      }
+    },
     "Check pairing code": {
       "extractionState": "manual",
       "localizations": {
@@ -422,6 +507,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofonu kontrol edip tekrar deneyin."
+          }
+        }
+      }
+    },
+    "Child": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Child"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çocuk"
+          }
+        }
+      }
+    },
+    "Chipmunk": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chipmunk"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincap"
           }
         }
       }
@@ -715,6 +834,23 @@
         }
       }
     },
+    "Deep": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deep"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalın"
+          }
+        }
+      }
+    },
     "Diagnostics": {
       "extractionState": "manual",
       "localizations": {
@@ -851,6 +987,23 @@
         }
       }
     },
+    "Effect delay": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effect delay"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Efekt gecikmesi"
+          }
+        }
+      }
+    },
     "Engine": {
       "extractionState": "manual",
       "localizations": {
@@ -881,6 +1034,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tahmini ağızdan kulağa gecikme"
+          }
+        }
+      }
+    },
+    "Fast": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fast"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hızlı"
           }
         }
       }
@@ -936,6 +1106,23 @@
         }
       }
     },
+    "Giant": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giant"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dev"
+          }
+        }
+      }
+    },
     "Hardware latency": {
       "extractionState": "manual",
       "localizations": {
@@ -949,6 +1136,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Donanım gecikmesi"
+          }
+        }
+      }
+    },
+    "Hear my voice (sidetone)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hear my voice (sidetone)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kendi sesimi duy (sidetone)"
+          }
+        }
+      }
+    },
+    "High (24 kHz)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High (24 kHz)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yüksek (24 kHz)"
+          }
+        }
+      }
+    },
+    "Higher quality sends more data (128 kbit/s at 8 kHz up to 512 kbit/s at 32 kHz) and needs this version on both iPhones; AirPods' hands-free microphone is 16 kHz anyway. Fast shrinks the playout and I/O buffers for the lowest delay; Safe absorbs more Wi‑Fi hiccups.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Higher quality sends more data (128 kbit/s at 8 kHz up to 512 kbit/s at 32 kHz) and needs this version on both iPhones; AirPods' hands-free microphone is 16 kHz anyway. Fast shrinks the playout and I/O buffers for the lowest delay; Safe absorbs more Wi‑Fi hiccups."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yüksek kalite daha çok veri gönderir (8 kHz'de 128 kbit/s, 32 kHz'de 512 kbit/s'ye kadar) ve iki iPhone'da da bu sürümü gerektirir; AirPods'un hands-free mikrofonu zaten 16 kHz'dir. Hızlı, en düşük gecikme için oynatma ve G/Ç tamponlarını küçültür; Güvenli, Wi‑Fi takılmalarını daha iyi tolere eder."
+          }
+        }
+      }
+    },
+    "Highest (32 kHz)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highest (32 kHz)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En yüksek (32 kHz)"
           }
         }
       }
@@ -1000,6 +1255,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "G/Ç tamponu"
+          }
+        }
+      }
+    },
+    "Incoming audio": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incoming audio"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelen ses"
           }
         }
       }
@@ -1208,6 +1480,23 @@
         }
       }
     },
+    "Latency profile": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latency profile"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gecikme profili"
+          }
+        }
+      }
+    },
     "Link path": {
       "extractionState": "manual",
       "localizations": {
@@ -1221,6 +1510,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bağlantı yolu"
+          }
+        }
+      }
+    },
+    "Listening EQ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listening EQ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dinleme EQ"
           }
         }
       }
@@ -1276,6 +1582,40 @@
         }
       }
     },
+    "Loudness": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loudness"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolgun ses"
+          }
+        }
+      }
+    },
+    "Low (8 kHz)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low (8 kHz)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düşük (8 kHz)"
+          }
+        }
+      }
+    },
     "Low latency": {
       "extractionState": "manual",
       "localizations": {
@@ -1327,6 +1667,23 @@
         }
       }
     },
+    "Megaphone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Megaphone"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Megafon"
+          }
+        }
+      }
+    },
     "Mic is live": {
       "extractionState": "manual",
       "localizations": {
@@ -1344,6 +1701,23 @@
         }
       }
     },
+    "Microphone EQ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone EQ"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofon EQ"
+          }
+        }
+      }
+    },
     "Microphone access denied": {
       "extractionState": "manual",
       "localizations": {
@@ -1357,6 +1731,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofon izni reddedildi"
+          }
+        }
+      }
+    },
+    "Microphone effect": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone effect"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofon efekti"
+          }
+        }
+      }
+    },
+    "Mid presence": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mid presence"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orta ton vurgusu"
           }
         }
       }
@@ -1837,6 +2245,40 @@
         }
       }
     },
+    "Play again": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play again"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden dinle"
+          }
+        }
+      }
+    },
+    "Playing back… %lld s": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playing back… %lld s"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dinletiliyor… %lld sn"
+          }
+        }
+      }
+    },
     "Playout buffer": {
       "extractionState": "manual",
       "localizations": {
@@ -1871,6 +2313,23 @@
         }
       }
     },
+    "Plays your microphone back to you with the lowest possible delay. Only with wired headphones or a headset: it is silenced on the loudspeaker to prevent feedback, and while muted. Bluetooth adds its own delay.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plays your microphone back to you with the lowest possible delay. Only with wired headphones or a headset: it is silenced on the loudspeaker to prevent feedback, and while muted. Bluetooth adds its own delay."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonunuzu olabilecek en düşük gecikmeyle size geri çalar. Yalnızca kablolu kulaklık ya da kulaklık setiyle: geri beslemeyi önlemek için hoparlörde ve sessizdeyken susturulur. Bluetooth kendi gecikmesini ekler."
+          }
+        }
+      }
+    },
     "Protocol": {
       "extractionState": "manual",
       "localizations": {
@@ -1901,6 +2360,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bas konuş"
+          }
+        }
+      }
+    },
+    "Radio": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Radio"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telsiz"
           }
         }
       }
@@ -2007,6 +2483,57 @@
         }
       }
     },
+    "Record 5 s and play back": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record 5 s and play back"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 sn kaydet ve dinle"
+          }
+        }
+      }
+    },
+    "Recording… %lld s": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording… %lld s"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaydediliyor… %lld sn"
+          }
+        }
+      }
+    },
+    "Records your microphone for 5 seconds exactly as it is sent (current quality, microphone effect and EQ) and plays it back through the normal playback path. Incoming audio is paused during playback. Nothing is saved.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records your microphone for 5 seconds exactly as it is sent (current quality, microphone effect and EQ) and plays it back through the normal playback path. Incoming audio is paused during playback. Nothing is saved."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonunuzu 5 saniye boyunca tam gönderildiği haliyle (seçili kalite, mikrofon efekti ve EQ) kaydeder ve normal oynatma yolundan size dinletir. Dinletme sırasında gelen ses duraklatılır. Hiçbir şey kaydedilmez."
+          }
+        }
+      }
+    },
     "Refreshed every second. Mouth-to-ear assumes the other iPhone's microphone path matches this one.": {
       "extractionState": "manual",
       "localizations": {
@@ -2092,6 +2619,23 @@
         }
       }
     },
+    "Robot": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Robot"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Robot"
+          }
+        }
+      }
+    },
     "Round trip": {
       "extractionState": "manual",
       "localizations": {
@@ -2139,6 +2683,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Çalışıyor"
+          }
+        }
+      }
+    },
+    "Safe": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güvenli"
           }
         }
       }
@@ -2262,6 +2823,23 @@
         }
       }
     },
+    "Sidetone level": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidetone level"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidetone düzeyi"
+          }
+        }
+      }
+    },
     "Silent": {
       "extractionState": "manual",
       "localizations": {
@@ -2309,6 +2887,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hoparlör"
+          }
+        }
+      }
+    },
+    "Standard (16 kHz)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard (16 kHz)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standart (16 kHz)"
           }
         }
       }
@@ -2551,6 +3146,23 @@
         }
       }
     },
+    "Telephone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telephone"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telefon"
+          }
+        }
+      }
+    },
     "The audio format could not be converted.": {
       "extractionState": "manual",
       "localizations": {
@@ -2581,6 +3193,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Otomatik tampon ölçülen Wi‑Fi dalgalanmasını izler; sabit ve yüksek bir değer takılmalara daha dayanıklıdır ama gecikme ekler. Uyumlu kaydı yalnızca mikrofon çalışmazsa kullanın. Ses işleme hoparlördeki yankıyı giderir; yalnızca kulaklıkla kapatın."
+          }
+        }
+      }
+    },
+    "The other iPhone hears the microphone effect and EQ; the listening EQ changes only what you hear. Pitch effects add a little delay. Effects never affect the connection.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other iPhone hears the microphone effect and EQ; the listening EQ changes only what you hear. Pitch effects add a little delay. Effects never affect the connection."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofon efektini ve EQ'yu diğer iPhone duyar; dinleme EQ yalnızca sizin duyduğunuzu değiştirir. Perde efektleri biraz gecikme ekler. Efektler bağlantıyı hiçbir zaman etkilemez."
           }
         }
       }
@@ -2636,6 +3265,23 @@
         }
       }
     },
+    "The other iPhone's version supports standard quality only; sending at 16 kHz.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other iPhone's version supports standard quality only; sending at 16 kHz."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone'un sürümü yalnızca standart kaliteyi destekliyor; 16 kHz gönderiliyor."
+          }
+        }
+      }
+    },
     "Transmit": {
       "extractionState": "manual",
       "localizations": {
@@ -2683,6 +3329,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Yayında"
+          }
+        }
+      }
+    },
+    "Treble": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treble"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiz"
           }
         }
       }
@@ -2806,6 +3469,23 @@
         }
       }
     },
+    "Voice clear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice clear"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net ses"
+          }
+        }
+      }
+    },
     "Voice detected": {
       "extractionState": "manual",
       "localizations": {
@@ -2819,6 +3499,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ses algılandı"
+          }
+        }
+      }
+    },
+    "Voice effects": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice effects"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ses efektleri"
           }
         }
       }

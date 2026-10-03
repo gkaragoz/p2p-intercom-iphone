@@ -16,6 +16,7 @@ struct SettingsView: View {
                 connectionSection
                 transmitSection
                 audioSection
+                voiceEffectsSection
                 diagnosticsSection
                 latencySection
                 aboutSection
@@ -159,6 +160,21 @@ struct SettingsView: View {
 
     private var audioSection: some View {
         Section {
+            Picker("Audio quality", selection: $settings.wireRate) {
+                ForEach(WireRate.allCases) { rate in
+                    Text(rate.title).tag(rate)
+                }
+            }
+            if controller.isWireRateLimitedByPeer {
+                Label("The other iPhone's version supports standard quality only; sending at 16 kHz.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            Picker("Latency profile", selection: $settings.latencyProfile) {
+                ForEach(LatencyProfile.allCases) { profile in
+                    Text(profile.title).tag(profile)
+                }
+            }
             Toggle("Automatic playout buffer", isOn: $settings.playoutAuto)
             if !settings.playoutAuto {
                 VStack(alignment: .leading, spacing: 8) {
@@ -185,11 +201,100 @@ struct SettingsView: View {
                 }
                 Slider(value: $settings.outputVolume, in: 0...1, step: 0.05)
             }
+            Toggle("Hear my voice (sidetone)", isOn: $settings.sidetone)
+            if settings.sidetone {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Sidetone level")
+                        Spacer()
+                        Text(settings.sidetoneLevel.formatted(.percent.precision(.fractionLength(0))))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settings.sidetoneLevel, in: 0...1, step: 0.05)
+                }
+            }
             Toggle("Keep screen awake", isOn: $settings.keepScreenAwake)
         } header: {
             Text("Audio")
         } footer: {
-            Text("The automatic buffer follows the measured Wi‑Fi jitter; a fixed higher value survives hiccups better but adds delay. Use Compatible capture only if the microphone does not work. Voice processing removes echo from the loudspeaker; turn it off only with headphones.")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("The automatic buffer follows the measured Wi‑Fi jitter; a fixed higher value survives hiccups better but adds delay. Use Compatible capture only if the microphone does not work. Voice processing removes echo from the loudspeaker; turn it off only with headphones.")
+                Text("Higher quality sends more data (128 kbit/s at 8 kHz up to 512 kbit/s at 32 kHz) and needs this version on both iPhones; AirPods' hands-free microphone is 16 kHz anyway. Fast shrinks the playout and I/O buffers for the lowest delay; Safe absorbs more Wi‑Fi hiccups.")
+                if settings.sidetone {
+                    Text("Plays your microphone back to you with the lowest possible delay. Only with wired headphones or a headset: it is silenced on the loudspeaker to prevent feedback, and while muted. Bluetooth adds its own delay.")
+                }
+            }
+        }
+    }
+
+    /// What the peer hears (effect and EQ on this microphone), what is heard here (listening EQ),
+    /// and the "hear yourself" test that plays the own voice back exactly as it is sent.
+    private var voiceEffectsSection: some View {
+        Section {
+            Picker("Microphone effect", selection: $settings.transmitEffect) {
+                ForEach(VoiceEffectPreset.allCases) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            Picker("Microphone EQ", selection: $settings.transmitEQ) {
+                ForEach(EQPreset.allCases) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            Picker("Listening EQ", selection: $settings.playbackEQ) {
+                ForEach(EQPreset.allCases) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            testLoopbackRows
+        } header: {
+            Text("Voice effects")
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("The other iPhone hears the microphone effect and EQ; the listening EQ changes only what you hear. Pitch effects add a little delay. Effects never affect the connection.")
+                Text("Records your microphone for 5 seconds exactly as it is sent (current quality, microphone effect and EQ) and plays it back through the normal playback path. Incoming audio is paused during playback. Nothing is saved.")
+            }
+        }
+    }
+
+    /// The test needs a running audio engine; `startTestRecording` and `playTestRecording` refuse otherwise.
+    private var canRunTest: Bool {
+        controller.isRunning && controller.audioState == .running
+    }
+
+    @ViewBuilder
+    private var testLoopbackRows: some View {
+        switch controller.testLoopback {
+        case .idle:
+            Button("Record 5 s and play back") { controller.startTestRecording() }
+                .disabled(!canRunTest)
+            if controller.hasTestRecording {
+                Button("Play again") { controller.playTestRecording() }
+                    .disabled(!canRunTest)
+            }
+        case .recording(let seconds):
+            HStack {
+                Label {
+                    Text("Recording… \(seconds) s")
+                } icon: {
+                    Image(systemName: "record.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                Spacer()
+                Button("Cancel") { controller.cancelTestLoopback() }
+                    .buttonStyle(.borderless)
+            }
+        case .playing(let seconds):
+            HStack {
+                Label {
+                    Text("Playing back… \(seconds) s")
+                } icon: {
+                    Image(systemName: "play.circle.fill")
+                }
+                Spacer()
+                Button("Cancel") { controller.cancelTestLoopback() }
+                    .buttonStyle(.borderless)
+            }
         }
     }
 
@@ -198,6 +303,11 @@ struct SettingsView: View {
             LabeledContent("Engine", value: settings.transportKind.displayName)
             LabeledContent("Output route", value: controller.route.outputName.isEmpty ? "—" : controller.route.outputName)
             LabeledContent("Input format", value: controller.inputDescription.isEmpty ? "—" : controller.inputDescription)
+            if let incoming = controller.incomingSampleRate, incoming != controller.effectiveWireRate.sampleRate {
+                // Each side sends at its own rate; shown only when the peer's differs from ours.
+                LabeledContent("Incoming audio",
+                               value: "\(Self.kHz(Double(incoming))) → \(Self.kHz(Double(controller.effectiveWireRate.sampleRate)))")
+            }
             if let version = controller.connectedPeers.compactMap(\.appVersion).first {
                 LabeledContent("Peer app version", value: version)
             }
@@ -231,6 +341,7 @@ struct SettingsView: View {
             LabeledContent("Voice processing", value: latency.capturePath == .none
                            ? "—"
                            : (latency.voiceProcessing ? String(localized: "On") : String(localized: "Off")))
+            LabeledContent("Effect delay", value: latency.effectLatencyMs > 0 ? Self.ms(latency.effectLatencyMs) : "—")
             LabeledContent("Sample rate", value: session.sampleRate > 0 ? Self.kHz(session.sampleRate) : "—")
             LabeledContent("IO buffer", value: session.ioBufferDuration > 0 ? Self.ms(session.ioBufferDuration * 1000) : "—")
             LabeledContent("Hardware latency", value: session.sampleRate > 0
@@ -254,7 +365,7 @@ struct SettingsView: View {
     private var aboutSection: some View {
         Section("About") {
             LabeledContent("Version", value: IntercomController.appVersion)
-            LabeledContent("Protocol", value: "v\(IntercomProtocol.version) · PCM 16 kHz")
+            LabeledContent("Protocol", value: "v\(IntercomProtocol.version) · PCM \(Self.kHz(Double(controller.effectiveWireRate.sampleRate)))")
             if let url = URL(string: "https://github.com/gkaragoz/p2p-intercom-iphone") {
                 Link("Source code on GitHub", destination: url)
             }

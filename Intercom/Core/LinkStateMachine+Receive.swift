@@ -186,13 +186,14 @@ extension LinkStateMachine {
         return peer
     }
 
-    /// Takes the authoritative name and version from a verified HELLO / HELLO_ACK.
+    /// Takes the authoritative name, version and capabilities from a verified HELLO / HELLO_ACK.
     private mutating func adopt(_ hello: NetHello, into peer: inout PeerRecord) {
         let before = peer.advert
         let isNew = peers[peer.id] == nil
         peer.displayName = DisplayName.sanitized(hello.displayName)
         peer.appVersion = hello.appVersion
         peer.protocolVersion = Int(hello.protocolVersion)
+        peer.capabilities = hello.capabilities
         peer.compatibility = .compatible
         if isNew || peer.advert != before {
             emitEvent(.peerDiscovered(peer.advert))

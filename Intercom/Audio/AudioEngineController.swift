@@ -23,8 +23,24 @@ enum AudioEngineError: LocalizedError {
 ///
 ///     inputNode ──▶ AVAudioSinkNode (real-time: copy into CaptureRing)      ─┐
 ///     inputNode ──tap──▶ CaptureRing (compatible mode / automatic fallback) ─┴▶ CaptureWorker
-///         CaptureWorker (thread, polls 5 ms): AVAudioConverter ──▶ 20 ms Int16 frames ──▶ onCapturedFrame
-///     JitterBuffer + cues ──▶ PlaybackRenderer ──▶ AVAudioSourceNode ──▶ mainMixerNode ──▶ outputNode
+///         CaptureWorker (thread, polls 5 ms): AVAudioConverter ──▶ 20 ms Int16 frames at the wire rate
+///             ──▶ [VoiceEffectProcessor: transmit effect + microphone EQ, optional] ──▶ onCapturedFrame
+///     JitterBuffer + cues ──▶ PlaybackRenderer [listening EQ, optional] ──▶ AVAudioSourceNode
+///         ──▶ mainMixerNode ──▶ outputNode
+///     inputNode ──▶ sidetoneMixer ──▶ mainMixerNode (sidetone, optional: hear your own microphone)
+///
+/// The wire rate (`Configuration.wireRate`, 8–32 kHz) sets the converter's output format, the frame
+/// size, the source node's format and the cue bank; changing it rebuilds the graph like a capture
+/// mode change. The transmit effect and EQ only swap the processor on the worker thread, without
+/// touching the live graph; the listening EQ is a renderer setting.
+///
+/// Sidetone is the raw microphone (after voice processing, never the transmit effect, which runs
+/// offline with its own latency) mixed straight into the output, so the delay is one I/O buffer plus
+/// the hardware output latency. The mixer only exists in the graph while the setting is on; without
+/// it the graph is exactly the one above. Its volume is 0 on the loudspeaker and the receiver, where
+/// the microphone would pick the output up again (feedback), and only rises on a wired headset or
+/// Bluetooth. A graph that fails to build or start with the mixer is rebuilt once without it on the
+/// same capture path, so a sidetone problem never costs the low-latency sink capture.
 ///
 /// Capture: the sink node delivers one hardware I/O buffer per callback on the real-time thread.
 /// A tap is not real-time and iOS may hand it 100 ms (or bigger) chunks, which adds that much delay
@@ -33,6 +49,7 @@ enum AudioEngineError: LocalizedError {
 ///
 /// Threads: every graph mutation and all state below happen on `engineQueue`. The render and sink
 /// callbacks touch only `PlaybackRenderer`/`CaptureRing` (preallocated memory, atomics, try-lock).
+/// The effect processor runs on the capture worker thread, which is not real-time.
 ///
 /// Recovery is decided by `AudioRecoveryMachine` (Core): interruptions, failed activations with
 /// classified error codes and background-aware retry, media services resets, configuration changes
@@ -53,6 +70,16 @@ final class AudioEngineController: @unchecked Sendable {
     struct Configuration: Equatable, Sendable {
         var captureMode: CaptureMode = .lowLatency
         var voiceProcessing = true
+        /// Sample rate captured, sent and played; a change rebuilds the graph.
+        var wireRate: WireRate = .standard
+        /// Preferred `AVAudioSession` I/O buffer; applied at the next activation, so a change rebuilds.
+        var ioBufferDuration: TimeInterval = AudioSessionController.defaultIOBufferDuration
+        /// Effect the peer hears on this microphone; swapped on the worker without a rebuild.
+        var transmitEffect: VoiceEffectPreset = .off
+        /// EQ the peer hears on this microphone; swapped on the worker without a rebuild.
+        var transmitEQ: EQPreset = .off
+        /// Mix the own microphone into the output (headset only); a change rebuilds the graph.
+        var sidetone = false
     }
 
     let jitterBuffer: JitterBuffer
@@ -74,8 +101,10 @@ final class AudioEngineController: @unchecked Sendable {
     private let counters = AudioMetricsCounters()
     private let renderer: PlaybackRenderer
     private let worker: CaptureWorker
-    private let wireFormat: AVAudioFormat
-    private let playbackFormat: AVAudioFormat
+    /// Int16 interleaved mono at every wire rate: what the capture converter produces.
+    private let wireFormats: [WireRate: AVAudioFormat]
+    /// Float32 mono at every wire rate: what the source node renders.
+    private let playbackFormats: [WireRate: AVAudioFormat]
     private let engineQueue = DispatchQueue(label: "intercom.audio.engine", qos: .userInitiated)
 
     // Cross-thread flags.
@@ -98,6 +127,15 @@ final class AudioEngineController: @unchecked Sendable {
     private var inputSampleRate: Double = 0
     private var inputChannels = 0
     private var isVoiceProcessingActive = false
+    /// Wire rate of the last graph built; a different one silences a cue synthesized for the old rate.
+    private var builtWireRate: WireRate?
+    /// The transmit effect and EQ chain the worker runs; `nil` while both are off.
+    private var transmitProcessor: VoiceEffectProcessor?
+    /// Mixes the input node into the main mixer; only attached while `configuration.sidetone` is on.
+    private var sidetoneMixer: AVAudioMixerNode?
+    /// The graph failed with the sidetone mixer during this run; build without it until the sidetone
+    /// setting toggles or the next start.
+    private var sidetoneUnavailable = false
     private var healthTimer: DispatchSourceTimer?
     private var retryTimer: DispatchSourceTimer?
     private var configurationObserver: NSObjectProtocol?
@@ -108,6 +146,12 @@ final class AudioEngineController: @unchecked Sendable {
     // Guarded by `lock`: read from other threads.
     private let lock = NSLock()
     private var desiredOutputVolume: Float = 1
+    /// Sidetone gain the user asked for; what the mixer gets also depends on the route and mute.
+    private var desiredSidetoneLevel: Float = 0.5
+    /// The current output route cannot feed the microphone back (headset), so sidetone may sound.
+    private var sidetoneRouteAllowed = false
+    /// Muted users hear no sidetone either: the peer hears nothing, so neither should they.
+    private var sidetoneMuted = false
     private var latestInputDescription = ""
     private var latestLatency = AudioLatencySnapshot()
     private var latestRoundTripMs: Double?
@@ -119,22 +163,30 @@ final class AudioEngineController: @unchecked Sendable {
 
     init(jitterBuffer: JitterBuffer, session: AudioSessionController, configuration: Configuration = Configuration(),
          backgroundActivity: BackgroundActivity? = nil) {
-        guard let wire = AVAudioFormat(commonFormat: .pcmFormatInt16,
-                                       sampleRate: IntercomProtocol.sampleRate,
-                                       channels: AVAudioChannelCount(IntercomProtocol.channelCount),
-                                       interleaved: true),
-              let playback = AVAudioFormat(standardFormatWithSampleRate: IntercomProtocol.sampleRate,
-                                           channels: AVAudioChannelCount(IntercomProtocol.channelCount)) else {
-            fatalError("The intercom wire format is not representable by AVAudioFormat")
+        var wireFormats: [WireRate: AVAudioFormat] = [:]
+        var playbackFormats: [WireRate: AVAudioFormat] = [:]
+        for rate in WireRate.allCases {
+            guard let wire = AVAudioFormat(commonFormat: .pcmFormatInt16,
+                                           sampleRate: Double(rate.sampleRate),
+                                           channels: AVAudioChannelCount(IntercomProtocol.channelCount),
+                                           interleaved: true),
+                  let playback = AVAudioFormat(standardFormatWithSampleRate: Double(rate.sampleRate),
+                                               channels: AVAudioChannelCount(IntercomProtocol.channelCount)) else {
+                fatalError("The intercom wire format is not representable by AVAudioFormat")
+            }
+            wireFormats[rate] = wire
+            playbackFormats[rate] = playback
         }
         self.jitterBuffer = jitterBuffer
         self.session = session
         self.configuration = configuration
         self.backgroundActivity = backgroundActivity
-        wireFormat = wire
-        playbackFormat = playback
-        renderer = PlaybackRenderer(jitterBuffer: jitterBuffer, counters: counters)
+        self.wireFormats = wireFormats
+        self.playbackFormats = playbackFormats
+        renderer = PlaybackRenderer(jitterBuffer: jitterBuffer, counters: counters,
+                                    cues: WireRate.allCases.map { CueToneBank(sampleRate: $0.sampleRate) })
         worker = CaptureWorker(counters: counters)
+        session.preferredIOBufferDuration = configuration.ioBufferDuration
         // Resolve the timebase now; its lazy initialisation must never happen on an audio thread.
         _ = HostTime.nanoseconds(fromTicks: 1)
 
@@ -167,6 +219,39 @@ final class AudioEngineController: @unchecked Sendable {
             engineQueue.async { [self] in
                 engine.mainMixerNode.outputVolume = newValue
             }
+        }
+    }
+
+    /// Sidetone gain (0...1) while `Configuration.sidetone` is on, the route allows it and the
+    /// microphone is not muted. Applied asynchronously on the engine queue like `outputVolume`,
+    /// and re-applied after every graph rebuild.
+    var sidetoneLevel: Float {
+        get { lock.withLock { desiredSidetoneLevel } }
+        set {
+            let level = min(max(newValue, 0), 1)
+            lock.withLock { desiredSidetoneLevel = level }
+            engineQueue.async { [self] in
+                applySidetoneVolume()
+            }
+        }
+    }
+
+    /// Silences the sidetone while the microphone is muted. Any thread.
+    func setSidetoneMuted(_ muted: Bool) {
+        lock.withLock { sidetoneMuted = muted }
+        engineQueue.async { [self] in
+            applySidetoneVolume()
+        }
+    }
+
+    /// The output route changed. Sidetone only sounds on a wired headset or Bluetooth; the
+    /// loudspeaker and the receiver would feed the microphone back into itself (howling). Any
+    /// thread; a rebuild that follows the route change reads the route again anyway.
+    func updateSidetoneRoute(_ route: AudioSessionController.Route) {
+        let allowed = Self.sidetoneAllowed(on: route)
+        lock.withLock { sidetoneRouteAllowed = allowed }
+        engineQueue.async { [self] in
+            applySidetoneVolume()
         }
     }
 
@@ -266,30 +351,61 @@ final class AudioEngineController: @unchecked Sendable {
         }
     }
 
-    /// Capture mode or voice processing changed. Rebuilds a running engine; a voice-processing
-    /// change uses a fresh `AVAudioEngine`, since toggling it on an engine that already ran is unreliable.
+    /// The configuration changed. A capture mode, voice processing, wire rate, I/O buffer or
+    /// sidetone change rebuilds a running engine (a voice-processing change with a fresh
+    /// `AVAudioEngine`, since toggling it on an engine that already ran is unreliable); a rebuild
+    /// while stopped is a no-op and the next start uses the stored configuration. A transmit effect
+    /// or EQ change alone only swaps the processor on the capture worker, so the graph and the
+    /// peer's stream keep running.
     func setConfiguration(_ newConfiguration: Configuration) {
         engineQueue.async { [self] in
             guard newConfiguration != configuration else { return }
+            let rebuild = newConfiguration.captureMode != configuration.captureMode
+                || newConfiguration.voiceProcessing != configuration.voiceProcessing
+                || newConfiguration.wireRate != configuration.wireRate
+                || newConfiguration.ioBufferDuration != configuration.ioBufferDuration
+                || newConfiguration.sidetone != configuration.sidetone
             let recreate = newConfiguration.voiceProcessing != configuration.voiceProcessing
+            let effectsOnly = !rebuild
+                && (newConfiguration.transmitEffect != configuration.transmitEffect
+                    || newConfiguration.transmitEQ != configuration.transmitEQ)
             if newConfiguration.captureMode != configuration.captureMode {
                 sinkUnavailable = false
             }
-            Self.log.notice("audio configuration: capture \(newConfiguration.captureMode.rawValue, privacy: .public), voice processing \(newConfiguration.voiceProcessing, privacy: .public)")
+            if newConfiguration.sidetone != configuration.sidetone {
+                // The user asked again: an earlier failure with the mixer gets another try.
+                sidetoneUnavailable = false
+            }
+            if newConfiguration.ioBufferDuration != configuration.ioBufferDuration {
+                // Read by the next `activate()`, which every rebuild performs.
+                session.preferredIOBufferDuration = newConfiguration.ioBufferDuration
+            }
+            Self.log.notice("audio configuration: capture \(newConfiguration.captureMode.rawValue, privacy: .public), voice processing \(newConfiguration.voiceProcessing, privacy: .public), wire \(newConfiguration.wireRate.sampleRate, privacy: .public) Hz, IO \(newConfiguration.ioBufferDuration * 1000, format: .fixed(precision: 1), privacy: .public) ms, effect \(newConfiguration.transmitEffect.rawValue, privacy: .public), mic EQ \(newConfiguration.transmitEQ.rawValue, privacy: .public), sidetone \(newConfiguration.sidetone, privacy: .public)")
             configuration = newConfiguration
-            handle(.reconfigure(recreateEngine: recreate))
+            if rebuild {
+                handle(.reconfigure(recreateEngine: recreate))
+            } else if effectsOnly, machine.state == .running {
+                installTransmitProcessor()
+            }
         }
+    }
+
+    /// Applies an EQ preset to the peer's voice as heard here (not to the cues). Any thread; the
+    /// renderer picks it up on its next cycle, running or not.
+    func setPlaybackEQ(_ preset: EQPreset) {
+        renderer.setListeningEQ(preset)
     }
 
     // MARK: - Start (engineQueue)
 
     private func startOnQueue() throws {
         guard machine.state == .stopped else { return }
-        Self.log.notice("starting audio engine: capture \(self.configuration.captureMode.rawValue, privacy: .public), voice processing \(self.configuration.voiceProcessing, privacy: .public), app active \(self.isAppActive.load(ordering: .relaxed), privacy: .public)")
+        Self.log.notice("starting audio engine: capture \(self.configuration.captureMode.rawValue, privacy: .public), voice processing \(self.configuration.voiceProcessing, privacy: .public), wire \(self.configuration.wireRate.sampleRate, privacy: .public) Hz, app active \(self.isAppActive.load(ordering: .relaxed), privacy: .public)")
         // Bump, then clear: the order is load-bearing (see `handleInterruptionNotification`).
         generation.add(1, ordering: .relaxed)
         interruptedFlag.store(false, ordering: .relaxed)
         sinkUnavailable = false
+        sidetoneUnavailable = false
         // A fresh engine per run: nothing stale survives a stop, a media services reset or a
         // voice-processing change made while stopped.
         replaceEngine()
@@ -601,6 +717,8 @@ final class AudioEngineController: @unchecked Sendable {
         context.inputSampleRate = inputSampleRate
         context.inputChannels = inputChannels
         context.session = session.metrics
+        context.wireSampleRate = configuration.wireRate.sampleRate
+        context.effectLatencyMs = transmitProcessor?.latencyMs ?? 0
         context.roundTripMs = networkRoundTripMs
         let snapshot = sampler.sample(reading: counters.read(), jitter: jitterBuffer.statistics,
                                       context: context, now: .now())
@@ -621,9 +739,7 @@ final class AudioEngineController: @unchecked Sendable {
     private func buildGraphAndStart() throws {
         if configuration.captureMode == .lowLatency, !sinkUnavailable {
             do {
-                try buildGraph(capture: .sinkNode)
-                engine.prepare()
-                try engine.start()
+                try buildAndStart(capture: .sinkNode)
                 didStart(capture: .sinkNode)
                 scheduleSinkCheck()
                 return
@@ -634,29 +750,73 @@ final class AudioEngineController: @unchecked Sendable {
                 sinkUnavailable = true
             }
         }
-        try buildGraph(capture: .tap)
-        engine.prepare()
-        try engine.start()
+        try buildAndStart(capture: .tap)
         didStart(capture: .tap)
+    }
+
+    /// Builds and starts the graph for `capture`. A failure with the sidetone mixer in the graph is
+    /// retried once without it, on the same capture path and before any sink-to-tap fallback, so a
+    /// sidetone problem costs the sidetone and never the low-latency capture. A session the system
+    /// refuses to start is not the mixer's fault and is left to the caller.
+    private func buildAndStart(capture: CapturePath) throws {
+        do {
+            try buildGraph(capture: capture)
+            engine.prepare()
+            try engine.start()
+        } catch let error where sidetoneMixer != nil && !Self.failureKind(error).isSessionFailure {
+            Self.log.error("sidetone mixer failed (\(Self.describe(error), privacy: .public)); retrying \(capture.rawValue, privacy: .public) capture without sidetone")
+            engine.stop()
+            tearDownGraph()
+            sidetoneUnavailable = true
+            try buildGraph(capture: capture)
+            engine.prepare()
+            try engine.start()
+        }
     }
 
     private func didStart(capture: CapturePath) {
         capturePath = capture
         buildCount += 1
+        let route = session.currentRoute
         // The first input callbacks of a Bluetooth hands-free route can take over a second while
         // the SCO link settles; that is not a stall and must not cost the sink.
-        watchdog.firstCaptureGrace = session.currentRoute.isHandsFreeProfile ? 3 : 1
+        watchdog.firstCaptureGrace = route.isHandsFreeProfile ? 3 : 1
         watchdog.rebase(captureCount: counters.captureCallbacks.load(ordering: .relaxed),
                         renderCount: counters.renderCallbacks.load(ordering: .relaxed), now: .now())
+        // The route may have changed since the graph was built (a route change is what triggers
+        // most rebuilds), so the sidetone volume follows the route the engine actually started on.
+        let sidetoneAllowed = Self.sidetoneAllowed(on: route)
+        lock.withLock { sidetoneRouteAllowed = sidetoneAllowed }
+        applySidetoneVolume()
+        let sidetone: String
+        if sidetoneMixer != nil {
+            sidetone = sidetoneAllowed ? "on" : "on (silent: route)"
+        } else {
+            sidetone = configuration.sidetone ? "unavailable" : "off"
+        }
         let metrics = session.metrics
-        Self.log.notice("audio engine running: capture \(capture.rawValue, privacy: .public), input \(Int(self.inputSampleRate), privacy: .public) Hz \(self.inputChannels, privacy: .public) ch, voice processing \(self.isVoiceProcessingActive, privacy: .public), session \(Int(metrics.sampleRate), privacy: .public) Hz, IO \(metrics.ioBufferDuration * 1000, format: .fixed(precision: 1), privacy: .public) ms (preferred \(metrics.preferredIOBufferDuration * 1000, format: .fixed(precision: 1), privacy: .public)), latency in \(metrics.inputLatency * 1000, format: .fixed(precision: 1), privacy: .public) out \(metrics.outputLatency * 1000, format: .fixed(precision: 1), privacy: .public) ms")
+        Self.log.notice("audio engine running: capture \(capture.rawValue, privacy: .public), input \(Int(self.inputSampleRate), privacy: .public) Hz \(self.inputChannels, privacy: .public) ch, voice processing \(self.isVoiceProcessingActive, privacy: .public), sidetone \(sidetone, privacy: .public), session \(Int(metrics.sampleRate), privacy: .public) Hz, IO \(metrics.ioBufferDuration * 1000, format: .fixed(precision: 1), privacy: .public) ms (preferred \(metrics.preferredIOBufferDuration * 1000, format: .fixed(precision: 1), privacy: .public)), latency in \(metrics.inputLatency * 1000, format: .fixed(precision: 1), privacy: .public) out \(metrics.outputLatency * 1000, format: .fixed(precision: 1), privacy: .public) ms")
     }
 
     private func buildGraph(capture: CapturePath) throws {
+        let rate = configuration.wireRate
+        guard let wireFormat = wireFormats[rate], let playbackFormat = playbackFormats[rate] else {
+            // Every rate was built in `init`, so this never fails; it only avoids a force-unwrap.
+            throw AudioEngineError.converterUnavailable
+        }
+        // The renderer's cue bank and EQ coefficients follow the rate; the engine is stopped here,
+        // so the render thread is not reading them. A cue cut off by a rate change would resume at
+        // the wrong pitch from the other bank, so it is dropped instead.
+        let renderer = self.renderer
+        renderer.setActiveRate(rate)
+        if let builtWireRate, builtWireRate != rate {
+            renderer.cancelCue()
+        }
+        builtWireRate = rate
+
         // Playback first: the voice-processing I/O unit takes the rendered output as its echo
         // reference, and enabling voice processing before the playback graph is attached has been
         // reported to leave echo cancellation silently ineffective.
-        let renderer = self.renderer
         let source = AVAudioSourceNode(format: playbackFormat) { isSilence, timestamp, frameCount, bufferList -> OSStatus in
             renderer.render(isSilence: isSilence, timestamp: timestamp, frameCount: frameCount, bufferList: bufferList)
         }
@@ -688,9 +848,21 @@ final class AudioEngineController: @unchecked Sendable {
         }
 
         // Channel 0 is captured whatever the channel count; the worker converts from mono Float32 at
-        // the hardware rate (16, 24, 44.1, 48 kHz, ...) to the 16 kHz wire format.
-        let captureSource = try CaptureSource(sampleRate: hardwareFormat.sampleRate, wireFormat: wireFormat, counters: counters)
+        // the hardware rate (16, 24, 44.1, 48 kHz, ...) to the Int16 wire format at the wire rate.
+        let captureSource = try CaptureSource(sampleRate: hardwareFormat.sampleRate, wireRate: rate,
+                                              wireFormat: wireFormat, counters: counters)
         let ring = captureSource.ring
+
+        // Sidetone: the input node fans out to the capture path and to a mixer feeding the output.
+        // Attached before the capture connections, so the sink path can be connected as a fan-out
+        // in one call. Without sidetone the graph below is exactly the plain one.
+        var sidetone: AVAudioMixerNode?
+        if configuration.sidetone, !sidetoneUnavailable {
+            let mixer = AVAudioMixerNode()
+            engine.attach(mixer)
+            sidetoneMixer = mixer
+            sidetone = mixer
+        }
 
         switch capture {
         case .sinkNode:
@@ -705,12 +877,22 @@ final class AudioEngineController: @unchecked Sendable {
                 return noErr
             }
             engine.attach(sink)
-            engine.connect(input, to: sink, format: nil)
+            if let sidetone {
+                // One fan-out connection: the sink still gets the input's own Float32 format.
+                engine.connect(input, to: [AVAudioConnectionPoint(node: sink, bus: 0),
+                                           AVAudioConnectionPoint(node: sidetone, bus: 0)],
+                               fromBus: 0, format: nil)
+            } else {
+                engine.connect(input, to: sink, format: nil)
+            }
             sinkNode = sink
         case .tap:
             guard let tapFormat = AVAudioFormat(standardFormatWithSampleRate: hardwareFormat.sampleRate,
                                                 channels: hardwareFormat.channelCount) else {
                 throw AudioEngineError.converterUnavailable
+            }
+            if let sidetone {
+                engine.connect(input, to: sidetone, format: nil)
             }
             // The size is a request; iOS may deliver much larger buffers (see the type comment).
             let bufferSize = AVAudioFrameCount(max(256, (hardwareFormat.sampleRate * IntercomProtocol.frameDuration).rounded()))
@@ -722,11 +904,68 @@ final class AudioEngineController: @unchecked Sendable {
         case .none:
             break
         }
+        if let sidetone {
+            // An explicit mono format at the hardware rate: a fresh mixer has no usable output
+            // format for `nil`, and the main mixer takes care of the rest.
+            guard let sidetoneFormat = AVAudioFormat(standardFormatWithSampleRate: hardwareFormat.sampleRate,
+                                                     channels: 1) else {
+                throw AudioEngineError.converterUnavailable
+            }
+            engine.connect(sidetone, to: engine.mainMixerNode, format: sidetoneFormat)
+            // Right from the first render cycle: a rebuild after a route change must not play a
+            // buffer of sidetone into the loudspeaker before `didStart` reads the route.
+            let allowed = Self.sidetoneAllowed(on: session.currentRoute)
+            lock.withLock { sidetoneRouteAllowed = allowed }
+            applySidetoneVolume()
+        }
         worker.setSource(captureSource)
+        // After the source: the processor is built for the source's rate and frame size.
+        installTransmitProcessor()
+    }
+
+    /// Only a route that cannot feed the output back into the microphone.
+    private static func sidetoneAllowed(on route: AudioSessionController.Route) -> Bool {
+        route.isWiredHeadset || route.isBluetooth
+    }
+
+    /// The sidetone mixer's gain from the setting, the route and mute. Engine queue; a no-op
+    /// without the mixer (setting off, unavailable, or the engine stopped).
+    private func applySidetoneVolume() {
+        guard let sidetoneMixer else { return }
+        let (level, allowed, muted) = lock.withLock { (desiredSidetoneLevel, sidetoneRouteAllowed, sidetoneMuted) }
+        sidetoneMixer.outputVolume = (configuration.sidetone && allowed && !muted) ? level : 0
+    }
+
+    /// Gives the capture worker the effect chain the configuration asks for, or none. With both
+    /// presets off the worker's per-frame cost is a single optional check, and nothing is allocated.
+    /// The previous processor is torn down here, on the engine queue; the worker drops its own
+    /// reference on its next poll.
+    private func installTransmitProcessor() {
+        let previous = transmitProcessor
+        let effect = configuration.transmitEffect
+        let eq = configuration.transmitEQ
+        guard effect != .off || eq != .off else {
+            worker.setProcessor(nil)
+            transmitProcessor = nil
+            previous?.tearDown()
+            return
+        }
+        let rate = configuration.wireRate
+        let processor = VoiceEffectProcessor(sampleRate: Double(rate.sampleRate), frameSamples: rate.frameSamples,
+                                             effect: effect, eq: eq)
+        transmitProcessor = processor
+        worker.setProcessor(processor)
+        previous?.tearDown()
+        Self.log.notice("transmit effect \(effect.rawValue, privacy: .public), mic EQ \(eq.rawValue, privacy: .public) at \(rate.sampleRate, privacy: .public) Hz: effect engine \(processor.isEffectAvailable ? "available" : "unavailable", privacy: .public), latency \(processor.latencyMs, format: .fixed(precision: 1), privacy: .public) ms")
     }
 
     private func tearDownGraph() {
         worker.setSource(nil)
+        worker.setProcessor(nil)
+        if let transmitProcessor {
+            transmitProcessor.tearDown()
+            self.transmitProcessor = nil
+        }
         if isTapInstalled {
             engine.inputNode.removeTap(onBus: 0)
             isTapInstalled = false
@@ -735,6 +974,12 @@ final class AudioEngineController: @unchecked Sendable {
             engine.disconnectNodeInput(sinkNode)
             engine.detach(sinkNode)
             self.sinkNode = nil
+        }
+        if let sidetoneMixer {
+            engine.disconnectNodeInput(sidetoneMixer)
+            engine.disconnectNodeOutput(sidetoneMixer)
+            engine.detach(sidetoneMixer)
+            self.sidetoneMixer = nil
         }
         if let sourceNode {
             engine.disconnectNodeOutput(sourceNode)

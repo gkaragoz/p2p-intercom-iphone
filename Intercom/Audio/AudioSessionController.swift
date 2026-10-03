@@ -43,12 +43,23 @@ final class AudioSessionController: @unchecked Sendable {
         case ended(shouldResume: Bool)
     }
 
-    /// Preferred hardware I/O buffer. Deliberately its own constant, not the 20 ms wire frame: the I/O
-    /// buffer adds its duration to both capture and playback delay, and the capture worker and the
-    /// jitter buffer cope with any block size. 10 ms halves that cost against 20 ms at a modest CPU
-    /// price. iOS treats it as a hint (it may round, or impose more, e.g. with Sound Recognition on);
-    /// the actual value is read back into `metrics`.
-    static let preferredIOBufferDuration: TimeInterval = 0.010
+    /// Default preferred hardware I/O buffer. Deliberately its own constant, not the 20 ms wire
+    /// frame: the I/O buffer adds its duration to both capture and playback delay, and the capture
+    /// worker and the jitter buffer cope with any block size. 10 ms halves that cost against 20 ms at
+    /// a modest CPU price. iOS treats it as a hint (it may round, or impose more, e.g. with Sound
+    /// Recognition on); the actual value is read back into `metrics`.
+    static let defaultIOBufferDuration: TimeInterval = 0.010
+
+    /// The I/O buffer the next activation asks for; the latency profile sets it (5 / 10 / 20 ms).
+    /// Written from the engine queue, read by `activate()` on the same queue, but guarded anyway so a
+    /// diagnostics read from another thread is never torn.
+    var preferredIOBufferDuration: TimeInterval {
+        get { preferenceLock.withLock { preferredIOBufferDurationValue } }
+        set { preferenceLock.withLock { preferredIOBufferDurationValue = newValue } }
+    }
+
+    private let preferenceLock = NSLock()
+    private var preferredIOBufferDurationValue: TimeInterval = AudioSessionController.defaultIOBufferDuration
 
     /// Route changes; set by `IntercomController`.
     var onRouteChange: (@Sendable (Route, AVAudioSession.RouteChangeReason) -> Void)?
@@ -87,9 +98,10 @@ final class AudioSessionController: @unchecked Sendable {
             Self.log.notice("applying category playAndRecord/voiceChat (was \(self.session.category.rawValue, privacy: .public)/\(self.session.mode.rawValue, privacy: .public), options \(self.session.categoryOptions.rawValue, privacy: .public))")
             try session.setCategory(Self.category, mode: Self.mode, options: options)
         }
-        if abs(session.preferredIOBufferDuration - Self.preferredIOBufferDuration) > 0.0005 {
+        let preferredIOBufferDuration = self.preferredIOBufferDuration
+        if abs(session.preferredIOBufferDuration - preferredIOBufferDuration) > 0.0005 {
             do {
-                try session.setPreferredIOBufferDuration(Self.preferredIOBufferDuration)
+                try session.setPreferredIOBufferDuration(preferredIOBufferDuration)
             } catch {
                 // Only a preference; the session works with whatever buffer it gets.
                 Self.log.error("setPreferredIOBufferDuration failed: \(String(describing: error), privacy: .public)")

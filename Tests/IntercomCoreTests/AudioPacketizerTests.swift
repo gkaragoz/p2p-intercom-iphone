@@ -77,13 +77,35 @@ final class AudioPacketizerTests: XCTestCase {
         let packets = packetizer.process(frame(3), decision: opening(preRoll: 2))
         XCTAssertEqual(packets.count, 1, "frames from before the discontinuity are never sent")
         XCTAssertEqual(packets[0].sequence, 1)
-        XCTAssertEqual(packets[0].timestamp, UInt32(3 * frameSize + AudioPacketizer.discontinuitySamples))
+        XCTAssertEqual(packetizer.codec, .pcm16Mono16k, "the default codec is the original 16 kHz format")
+        XCTAssertEqual(packetizer.discontinuitySamples, 16_000, "one second at 16 kHz")
+        XCTAssertEqual(packets[0].timestamp, UInt32(3 * frameSize + packetizer.discontinuitySamples))
 
         var discarded = AudioPacketizer(preRollCapacity: 2)
         _ = discarded.process(frame(0), decision: skip)
         discarded.discardPreRoll()
         XCTAssertEqual(discarded.bufferedPreRollFrames, 0)
         XCTAssertEqual(discarded.sampleClock, UInt32(frameSize), "discardPreRoll keeps the clock")
+    }
+
+    func testCodecIsStampedOnPacketsAndScalesTheDiscontinuityJump() {
+        var packetizer = AudioPacketizer(preRollCapacity: 2, codec: .pcm16Mono32k)
+        let wideFrame = [Int16](repeating: 7, count: 640)
+        let packets = packetizer.process(wideFrame, decision: send)
+        XCTAssertEqual(packets.map(\.codec), [.pcm16Mono32k])
+        XCTAssertEqual(packets[0].samples.count, 640)
+        XCTAssertEqual(packetizer.sampleClock, 640)
+
+        packetizer.markDiscontinuity()
+        XCTAssertEqual(packetizer.discontinuitySamples, 32_000, "one second at 32 kHz")
+        XCTAssertEqual(packetizer.sampleClock, 640 + 32_000)
+        let next = packetizer.process(wideFrame, decision: send)
+        XCTAssertEqual(next.map(\.timestamp), [UInt32(640 + 32_000)])
+        XCTAssertEqual(next.map(\.codec), [.pcm16Mono32k])
+
+        var standard = AudioPacketizer()
+        XCTAssertEqual(standard.process(frame(0), decision: send).map(\.codec), [.pcm16Mono16k],
+                       "without a codec the packetizer keeps the original wire format")
     }
 
     func testReceiverSeesADiscontinuityAsANewTalkSpurt() {

@@ -16,6 +16,8 @@ extension LinkStateMachine {
         var appVersion: String?
         var protocolVersion: Int?
         var compatibility: PeerCompatibility
+        /// Capability bits from the TXT record, overruled by every verified HELLO / HELLO_ACK.
+        var capabilities: UInt32 = 0
         /// The last TXT record seen, so an unchanged re-report does not undo a handshake verdict.
         var lastRecord: DiscoveryRecord?
         /// Currently listed by the browser.
@@ -67,7 +69,8 @@ extension LinkStateMachine {
         }
 
         var advert: PeerAdvert {
-            PeerAdvert(id: id, displayName: displayName, protocolVersion: protocolVersion, compatibility: compatibility)
+            PeerAdvert(id: id, displayName: displayName, protocolVersion: protocolVersion,
+                       compatibility: compatibility, capabilities: capabilities)
         }
 
         /// Heartbeat echoes and outstanding pings belong to the link they were measured on. A later

@@ -13,6 +13,7 @@ extension LinkStateMachine {
             var peer = PeerRecord(id: id, displayName: record.displayName, compatibility: compatibility,
                                   backoff: configuration.backoff, controlRetryInterval: configuration.controlRetryInterval)
             peer.protocolVersion = record.protocolVersion
+            peer.capabilities = record.capabilities
             peer.lastRecord = record
             peer.isAdvertised = true
             peer.isDialable = true
@@ -41,6 +42,7 @@ extension LinkStateMachine {
             peer.lastRecord = record
             peer.compatibility = compatibility
             peer.protocolVersion = record.protocolVersion
+            peer.capabilities = record.capabilities
             if peer.appVersion == nil {
                 peer.displayName = record.displayName
             }

@@ -46,6 +46,13 @@ final class IntercomController: ObservableObject {
         var hasBeenConnected = false
         /// Why the last link to this peer ended; `nil` once it is up again.
         var lastDisconnectReason: DisconnectReason?
+        /// `IntercomProtocol.Network.Capability` bits the peer claimed; 0 for a legacy peer.
+        var capabilities: UInt32 = 0
+
+        /// The peer decodes every wire rate, not only the standard 16 kHz.
+        var supportsMultiRateAudio: Bool {
+            capabilities & IntercomProtocol.Network.Capability.multiRateAudio != 0
+        }
 
         /// The last link was lost without anyone asking for it, so the transport is redialling.
         /// Mirrors what `SessionStatusMachine` treats as an unexpected loss.
@@ -72,9 +79,22 @@ final class IntercomController: ObservableObject {
         }
     }
 
+    /// The "hear yourself" test: a few seconds of the own microphone are recorded exactly as they
+    /// are sent, then played back through the local receive path.
+    enum TestLoopbackState: Equatable {
+        case idle
+        /// Recording; `remainingSeconds` counts down from `testRecordingSeconds`.
+        case recording(remainingSeconds: Int)
+        /// Playing the recording back; `remainingSeconds` counts down to the end of the audio.
+        case playing(remainingSeconds: Int)
+    }
+
     /// A latched push-to-talk transmission ends by itself after this long, so a latch set from the
     /// Lock Screen and forgotten cannot leave the microphone open indefinitely.
     static let talkLatchTimeout: TimeInterval = 60
+    /// Length of a test recording. Long enough for a sentence, short enough that the peer's audio
+    /// (dropped while the recording plays back) is not missed for long.
+    static let testRecordingSeconds = 5
 
     @Published private(set) var phase: Phase = .idle
     /// Overall link state: idle, searching, disconnected, connecting, connected, reconnecting or audio
@@ -104,6 +124,7 @@ final class IntercomController: ObservableObject {
         didSet {
             guard oldValue != isMuted else { return }
             pipeline.gate.setMuted(isMuted)
+            engine.setSidetoneMuted(isMuted)
             // A change that came from the system (AirPods stem press) must not be echoed back.
             if !isApplyingSystemMute {
                 inputMute.setSystemMuted(isMuted)
@@ -128,9 +149,25 @@ final class IntercomController: ObservableObject {
     @Published private(set) var audioState: AudioEngineController.State = .stopped
     /// Latency diagnostics, refreshed once per second while running.
     @Published private(set) var latency = AudioLatencySnapshot()
+    /// The wire rate actually in use: the setting, unless a connected peer cannot decode other
+    /// rates, in which case the standard rate until that peer is gone.
+    @Published private(set) var effectiveWireRate: WireRate
+    /// The user asked for a rate a connected legacy peer cannot take, so the standard rate is used.
+    @Published private(set) var isWireRateLimitedByPeer = false
+    /// Sample rate of the peer's most recent audio packet, `nil` until one arrived; it may differ
+    /// from `effectiveWireRate`, since each side picks its own rate.
+    @Published private(set) var incomingSampleRate: Int?
+    /// Phase of the "hear yourself" test; `.idle` almost always.
+    @Published private(set) var testLoopback: TestLoopbackState = .idle
+    /// A test recording is kept in memory and can be played again (`playTestRecording`). Dropped
+    /// when the wire rate changes, since it is stored at the rate it was captured at.
+    @Published private(set) var hasTestRecording = false
 
     let settings: AppSettings
     let pipeline: AudioPipeline
+
+    /// The rate the setting asks for; `effectiveWireRate` follows it unless a legacy peer is connected.
+    private var wantedWireRate: WireRate
 
     /// Whether the app is in the foreground (scene active, or inactive on its way back).
     private(set) var isAppActive = true
@@ -180,6 +217,19 @@ final class IntercomController: ObservableObject {
     private var lifecycleObservers = Set<AnyCancellable>()
     private var meterTimer: AnyCancellable?
     private var stateTimer: AnyCancellable?
+    /// The last test recording, at the rate it was captured at; only playable at that rate.
+    private var lastTestRecording: (samples: [Int16], rate: WireRate)?
+    /// 1 Hz countdown of the test's `remainingSeconds`, in both phases.
+    private var testCountdown: AnyCancellable?
+    /// Seconds the recording phase has been running, for the countdown and its safety net.
+    private var testRecordingTicks = 0
+    /// Paces the recording into the jitter buffer while `testLoopback` is `.playing`.
+    private var loopbackPlayer: LoopbackPlayer?
+    /// Serial queue the loopback pacing timer fires on. Not the main queue: a timer behind UI work
+    /// would deliver packets in bursts, which the jitter buffer would read as network jitter.
+    private let loopbackQueue = DispatchQueue(label: "intercom.loopback", qos: .userInitiated)
+    /// Tail left in the jitter buffer after the last loopback packet, on top of its playout target.
+    private static let loopbackDrainMs = 250
 
     convenience init() {
         self.init(settings: AppSettings())
@@ -187,6 +237,9 @@ final class IntercomController: ObservableObject {
 
     init(settings: AppSettings) {
         self.settings = settings
+        wantedWireRate = settings.wireRate
+        effectiveWireRate = settings.wireRate
+        // The jitter configuration already carries the wanted rate; no peer is connected yet.
         let jitter = JitterBuffer(configuration: settings.jitterConfiguration)
         jitterBuffer = jitter
         let session = AudioSessionController()
@@ -198,7 +251,11 @@ final class IntercomController: ObservableObject {
             mode: settings.transmitMode,
             detector: VoiceActivityDetector(thresholdDB: Float(settings.voxThresholdDB))
         )
-        pipeline = AudioPipeline(gate: gate, jitterBuffer: jitter)
+        pipeline = AudioPipeline(gate: gate, jitterBuffer: jitter, wireRate: settings.wireRate)
+        if settings.playbackEQ != .off {
+            // The renderer starts flat; a remembered listening EQ is only pushed when there is one.
+            engine.setPlaybackEQ(settings.playbackEQ)
+        }
         wireCallbacks()
         observeSettings()
         observeLifecycle()
@@ -261,6 +318,8 @@ final class IntercomController: ObservableObject {
         do {
             audioSession.startObserving()
             engine.outputVolume = Float(settings.outputVolume)
+            engine.sidetoneLevel = Float(settings.sidetoneLevel)
+            engine.setSidetoneMuted(isMuted)
             engine.setAppActive(isAppActive)
             pipeline.gate.open()
             applyTalkGate()
@@ -391,6 +450,172 @@ final class IntercomController: ObservableObject {
         engine.playCue(cue)
     }
 
+    // MARK: - Test recording ("hear yourself")
+    //
+    // Records `testRecordingSeconds` of the own microphone as the peer would receive it (after the
+    // transmit effect, at the wire rate; the transmit gate does not matter, so the talk button need
+    // not be held and transmission goes on as usual), then plays it back through the local jitter
+    // buffer, renderer and listening EQ. While it plays, the peer's packets are dropped. Nothing
+    // touches disk. The Live Activity, the transmit gate and the peer are not involved.
+
+    /// Starts a test recording; playback follows by itself when it is full. Ignored unless the
+    /// intercom runs with audio up and no test is in progress.
+    func startTestRecording() {
+        guard isRunning, audioState == .running, testLoopback == .idle else {
+            Self.log.notice("test recording refused: running \(self.isRunning, privacy: .public), audio \(self.audioState.description, privacy: .public), test \(String(describing: self.testLoopback), privacy: .public)")
+            return
+        }
+        let rate = effectiveWireRate
+        pipeline.startTestRecording(capacity: Self.testRecordingSeconds * rate.sampleRate)
+        testRecordingTicks = 0
+        testLoopback = .recording(remainingSeconds: Self.testRecordingSeconds)
+        startTestCountdown()
+        Self.log.notice("test recording started: \(Self.testRecordingSeconds, privacy: .public) s at \(rate.sampleRate, privacy: .public) Hz")
+    }
+
+    /// Plays the last test recording (again). Ignored unless the intercom runs with audio up, no
+    /// test is in progress and there is a recording at the current wire rate.
+    func playTestRecording() {
+        guard isRunning, audioState == .running, testLoopback == .idle, let recording = lastTestRecording else { return }
+        guard recording.rate == effectiveWireRate else {
+            // Only reachable if the rate changed since `reconcileWireRate` last looked; the pipeline
+            // would drop every packet of the wrong codec anyway.
+            Self.log.notice("test recording dropped: captured at \(recording.rate.sampleRate, privacy: .public) Hz, wire rate is \(self.effectiveWireRate.sampleRate, privacy: .public) Hz")
+            discardTestRecording()
+            return
+        }
+        let packetizer = LoopbackPacketizer(samples: recording.samples, codec: recording.rate.codec)
+        guard packetizer.packetCount > 0 else {
+            discardTestRecording()
+            return
+        }
+        let player = LoopbackPlayer(packetizer: packetizer)
+        loopbackPlayer = player
+        pipeline.beginLoopback()
+        testLoopback = .playing(remainingSeconds: Self.seconds(coveringMilliseconds: player.durationMs))
+        startTestCountdown()
+        let pipeline = self.pipeline
+        player.start(on: loopbackQueue, push: { packet in
+            pipeline.pushLoopback(packet)
+        }, finished: { [weak self] in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.loopbackPacketsExhausted(player) }
+            }
+        })
+        Self.log.notice("test recording playing: \(player.packetCount, privacy: .public) packets, \(player.durationMs, privacy: .public) ms at \(recording.rate.sampleRate, privacy: .public) Hz")
+    }
+
+    /// Ends whichever phase of the test is running. A recording in progress is discarded; a
+    /// playback stops and the peer's audio flows again. The last completed recording is kept.
+    func cancelTestLoopback() {
+        switch testLoopback {
+        case .idle:
+            return
+        case .recording:
+            _ = pipeline.stopTestRecording()
+            Self.log.notice("test recording cancelled")
+        case .playing:
+            stopLoopbackPlayback()
+            Self.log.notice("test playback cancelled")
+        }
+        testCountdown = nil
+        testLoopback = .idle
+    }
+
+    /// The pipeline's recorder reached its capacity (capture thread, hopped to main).
+    private func testRecordingDidFill() {
+        guard case .recording = testLoopback else { return }
+        finishTestRecording()
+    }
+
+    /// Takes the recording out of the pipeline and, unless it is empty, keeps it and plays it.
+    /// The rate is the one in effect now: a rate change during the recording cancels the test.
+    private func finishTestRecording() {
+        let samples = pipeline.stopTestRecording()
+        testCountdown = nil
+        testLoopback = .idle
+        let rate = effectiveWireRate
+        guard !samples.isEmpty else {
+            Self.log.notice("test recording ended empty: capture delivered nothing")
+            return
+        }
+        lastTestRecording = (samples, rate)
+        hasTestRecording = true
+        Self.log.notice("test recording done: \(samples.count, privacy: .public) samples (\(samples.count * 1_000 / rate.sampleRate, privacy: .public) ms) at \(rate.sampleRate, privacy: .public) Hz")
+        playTestRecording()
+    }
+
+    private func discardTestRecording() {
+        lastTestRecording = nil
+        if hasTestRecording {
+            hasTestRecording = false
+        }
+    }
+
+    private func startTestCountdown() {
+        testCountdown = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.tickTestCountdown() }
+    }
+
+    private func tickTestCountdown() {
+        switch testLoopback {
+        case .recording:
+            testRecordingTicks += 1
+            let remaining = Self.testRecordingSeconds - testRecordingTicks
+            if remaining < 0 {
+                // The pipeline reports "full" from the capture thread; a second past the end with
+                // no report means capture stopped delivering. Keep what there is.
+                Self.log.notice("test recording did not fill in time (\(self.pipeline.snapshot().testRecordedSamples, privacy: .public) samples); finishing with what was captured")
+                finishTestRecording()
+            } else {
+                testLoopback = .recording(remainingSeconds: remaining)
+            }
+        case .playing:
+            guard let player = loopbackPlayer else { return }
+            let packetMs = 1_000 / IntercomProtocol.framesPerSecond
+            // Never 0 while still playing: the tail drains after the last packet went in.
+            let remaining = max(1, Self.seconds(coveringMilliseconds: player.remainingPackets * packetMs))
+            if testLoopback != .playing(remainingSeconds: remaining) {
+                testLoopback = .playing(remainingSeconds: remaining)
+            }
+        case .idle:
+            testCountdown = nil
+        }
+    }
+
+    /// The pacer pushed the last packet; the buffer still holds its playout target of audio.
+    /// Wait for that plus a margin before handing the buffer back to the peer's stream.
+    private func loopbackPacketsExhausted(_ player: LoopbackPlayer) {
+        guard loopbackPlayer === player else { return }
+        let drainMs = jitterBuffer.statistics.targetDelayMs + Self.loopbackDrainMs
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(drainMs)) { [weak self] in
+            MainActor.assumeIsolated { self?.loopbackDidDrain(player) }
+        }
+    }
+
+    private func loopbackDidDrain(_ player: LoopbackPlayer) {
+        guard loopbackPlayer === player else { return }
+        stopLoopbackPlayback()
+        testCountdown = nil
+        testLoopback = .idle
+        Self.log.notice("test playback done")
+    }
+
+    /// Stops pacing, waits for a tick in flight, then gives the buffer back to the peer's stream,
+    /// so no loopback packet lands after the reset.
+    private func stopLoopbackPlayback() {
+        loopbackPlayer?.cancel()
+        loopbackPlayer = nil
+        loopbackQueue.sync {}
+        pipeline.endLoopback()
+    }
+
+    /// Whole seconds that cover `milliseconds` (rounded up).
+    private static func seconds(coveringMilliseconds milliseconds: Int) -> Int {
+        (max(0, milliseconds) + 999) / 1_000
+    }
+
     // MARK: - Scene phase
 
     /// The app is active. An interruption that ended while the app was suspended may never have
@@ -512,7 +737,16 @@ final class IntercomController: ObservableObject {
         pipeline.onSendingChanged = { [weak self] sending in
             Task { @MainActor in self?.sendingDidChange(sending) }
         }
+        pipeline.onTestRecordingFull = { [weak self] in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.testRecordingDidFill() }
+            }
+        }
+        let engine = self.engine
         audioSession.onRouteChange = { [weak self] route, _ in
+            // Straight to the engine: the sidetone must fall silent the moment the headset is
+            // unplugged, not after a hop to the main actor.
+            engine.updateSidetoneRoute(route)
             Task { @MainActor in self?.route = route }
         }
     }
@@ -537,24 +771,67 @@ final class IntercomController: ObservableObject {
             }
             .store(in: &settingsObservers)
 
-        settings.$jitterTargetMs
-            .combineLatest(settings.$playoutAuto)
-            .map { AppSettings.jitterConfiguration(targetMs: $0, adaptive: $1) }
+        // `@Published` emits before the property changes, so every sink below builds from the
+        // emitted values and never reads `settings.x` for the value that is changing.
+        settings.$wireRate
             .dropFirst()
             .removeDuplicates()
-            .sink { [weak self] configuration in
-                self?.jitterBuffer.configuration = configuration
+            .sink { [weak self] rate in
+                guard let self else { return }
+                self.wantedWireRate = rate
+                self.reconcileWireRate(reason: "setting")
+            }
+            .store(in: &settingsObservers)
+
+        settings.$jitterTargetMs
+            .combineLatest(settings.$playoutAuto, settings.$latencyProfile)
+            .dropFirst()
+            .removeDuplicates { $0 == $1 }
+            .sink { [weak self] targetMs, adaptive, profile in
+                self?.applyJitterConfiguration(targetMs: targetMs, adaptive: adaptive, profile: profile)
             }
             .store(in: &settingsObservers)
 
         settings.$captureMode
-            .combineLatest(settings.$voiceProcessingEnabled)
-            .map { AudioEngineController.Configuration(captureMode: $0, voiceProcessing: $1) }
+            .combineLatest(settings.$voiceProcessingEnabled, settings.$latencyProfile)
+            .combineLatest(settings.$transmitEffect, settings.$transmitEQ, settings.$sidetone)
+            .compactMap { [weak self] capture, effect, eq, sidetone -> AudioEngineController.Configuration? in
+                guard let self else { return nil }
+                let (mode, voiceProcessing, profile) = capture
+                // The effective rate, not the setting: a legacy peer may be pinning it.
+                return AudioEngineController.Configuration(captureMode: mode,
+                                                           voiceProcessing: voiceProcessing,
+                                                           wireRate: self.effectiveWireRate,
+                                                           ioBufferDuration: profile.ioBufferDuration,
+                                                           transmitEffect: effect,
+                                                           transmitEQ: eq,
+                                                           sidetone: sidetone)
+            }
             .dropFirst()
             .removeDuplicates()
             .sink { [weak self] configuration in
-                // Stored even while stopped; a running engine rebuilds.
+                // Stored even while stopped; a running engine rebuilds or swaps the effect.
                 self?.engine.setConfiguration(configuration)
+            }
+            .store(in: &settingsObservers)
+
+        settings.$transmitEffect
+            .combineLatest(settings.$transmitEQ)
+            .dropFirst()
+            .removeDuplicates { $0 == $1 }
+            .sink { [weak self] _ in
+                guard let self, self.isRunning else { return }
+                // The effect chain adds or removes a few milliseconds of delay; let the receiver
+                // re-anchor its delay estimate around the step instead of reading it as jitter.
+                self.pipeline.markCaptureDiscontinuity()
+            }
+            .store(in: &settingsObservers)
+
+        settings.$playbackEQ
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] preset in
+                self?.engine.setPlaybackEQ(preset)
             }
             .store(in: &settingsObservers)
 
@@ -563,6 +840,14 @@ final class IntercomController: ObservableObject {
             .sink { [weak self] volume in
                 guard let self, self.isRunning else { return }
                 self.engine.outputVolume = Float(volume)
+            }
+            .store(in: &settingsObservers)
+
+        settings.$sidetoneLevel
+            .dropFirst()
+            .sink { [weak self] level in
+                // Stored by the engine whether running or not; `start()` sets it again anyway.
+                self?.engine.sidetoneLevel = Float(level)
             }
             .store(in: &settingsObservers)
 
@@ -724,6 +1009,8 @@ final class IntercomController: ObservableObject {
         transport?.stop()
         transport = nil
         peers.removeAll()
+        // No peer left to limit the rate.
+        reconcileWireRate(reason: "transport stopped")
         remoteTalkFlag = false
         remoteTalking = false
         remoteMuted = false
@@ -782,10 +1069,14 @@ final class IntercomController: ObservableObject {
         if let index = peers.firstIndex(where: { $0.id == advert.id }) {
             peers[index].name = advert.displayName
             peers[index].compatibility = advert.compatibility
+            peers[index].capabilities = advert.capabilities
         } else {
             peers.append(PeerInfo(id: advert.id, name: advert.displayName, state: .discovered,
-                                  appVersion: nil, compatibility: advert.compatibility))
+                                  appVersion: nil, compatibility: advert.compatibility,
+                                  capabilities: advert.capabilities))
         }
+        // The transport re-announces a peer when its handshake reveals its capabilities.
+        reconcileWireRate(reason: "peer advertised")
         updateSessionStatus(.peerNamed(advert.id, advert.displayName))
     }
 
@@ -818,6 +1109,7 @@ final class IntercomController: ObservableObject {
             if !wasConnected {
                 peerDidConnect(peerID, isResumption: isResumption)
             }
+            reconcileWireRate(reason: "peer connected")
         case .suspect:
             peers[index].isSuspect = true
         case .disconnected(let reason):
@@ -825,8 +1117,52 @@ final class IntercomController: ObservableObject {
             peers[index].isSuspect = false
             peers[index].lastDisconnectReason = reason
             peerDidDisconnect(peerID, reason: reason, wasConnected: wasConnected)
+            reconcileWireRate(reason: "peer disconnected")
         }
         updateSessionStatus(.linkStateChanged(peerID, state))
+    }
+
+    /// Picks the wire rate both directions run at: the setting, unless a connected peer cannot
+    /// decode anything but the standard rate. Applies a change in a fixed order:
+    ///
+    /// 1. the pipeline, so its packetizer stamps the new codec and, until the engine has rebuilt,
+    ///    drops the frames of the old size the capture worker still delivers;
+    /// 2. the jitter buffer, which re-buffers at the new frame size and rate (the inbound adapter
+    ///    already converts to it after step 1);
+    /// 3. the engine, whose rebuild happens asynchronously on its own queue and is what makes the
+    ///    capture worker deliver frames of the new size.
+    ///
+    /// Doing the engine first would let old-size frames through a packetizer already stamping the
+    /// new codec; doing the jitter buffer last would push new-size packets into a buffer of the old size.
+    private func reconcileWireRate(reason: String) {
+        let legacyPeer = connectedPeers.contains { !$0.supportsMultiRateAudio }
+        let effective: WireRate = legacyPeer ? .standard : wantedWireRate
+        let limited = legacyPeer && wantedWireRate != .standard
+        if isWireRateLimitedByPeer != limited {
+            isWireRateLimitedByPeer = limited
+        }
+        guard effective != effectiveWireRate else { return }
+        Self.log.notice("wire rate \(self.effectiveWireRate.sampleRate, privacy: .public) -> \(effective.sampleRate, privacy: .public) Hz (\(reason, privacy: .public), wanted \(self.wantedWireRate.sampleRate, privacy: .public), legacy peer \(legacyPeer, privacy: .public))")
+        // A test recording is bound to its rate: one in progress would mix frame sizes, and a kept
+        // one can no longer be played.
+        cancelTestLoopback()
+        if lastTestRecording?.rate != effective {
+            discardTestRecording()
+        }
+        effectiveWireRate = effective
+        pipeline.setWireRate(effective)
+        jitterBuffer.configuration = AppSettings.jitterConfiguration(targetMs: settings.jitterTargetMs,
+                                                                     adaptive: settings.playoutAuto,
+                                                                     wireRate: effective,
+                                                                     profile: settings.latencyProfile)
+        engine.setConfiguration(settings.audioEngineConfiguration(wireRate: effective))
+    }
+
+    /// The playout settings changed; the buffer keeps the rate in effect.
+    private func applyJitterConfiguration(targetMs: Double, adaptive: Bool, profile: LatencyProfile) {
+        jitterBuffer.configuration = AppSettings.jitterConfiguration(targetMs: targetMs, adaptive: adaptive,
+                                                                     wireRate: effectiveWireRate,
+                                                                     profile: profile)
     }
 
     private func peerDidConnect(_ peerID: PeerID, isResumption: Bool) {
@@ -835,6 +1171,8 @@ final class IntercomController: ObservableObject {
         if !isResumption {
             // A new peer instance: its audio clock, delay history and round-trip time are unrelated to
             // anything buffered so far. A resumption (same instance, micro-reconnect) keeps all of it.
+            // A test playing through the buffer ends with it rather than fighting the new stream.
+            cancelTestLoopback()
             jitterBuffer.reset()
             roundTripMs = nil
             remoteTalkFlag = false
@@ -878,6 +1216,8 @@ final class IntercomController: ObservableObject {
                 peers[index].appVersion = hello.appVersion
                 updateSessionStatus(.peerNamed(peerID, name))
             }
+            // The handshake that carried this hello also settled the peer's capabilities.
+            reconcileWireRate(reason: "hello")
         case .talkState(let state):
             remoteTalkFlag = state.isTalking
             remoteMuted = state.isMuted
@@ -1000,6 +1340,8 @@ final class IntercomController: ObservableObject {
 
     private func handleEngineRestart() {
         guard isRunning else { return }
+        // The rebuild paused capture and playback for a moment; a test would have a hole in it.
+        cancelTestLoopback()
         route = audioSession.currentRoute
         inputDescription = engine.inputDescription
         // Capture paused while the engine restarted; let the peer re-anchor its delay estimate.
@@ -1020,6 +1362,10 @@ final class IntercomController: ObservableObject {
         let previous = audioState
         Self.log.notice("audio state \(previous.description, privacy: .public) -> \(state.description, privacy: .public) (app active \(self.isAppActive, privacy: .public))")
         audioState = state
+        if state != .running {
+            // No capture to record, no output to play back.
+            cancelTestLoopback()
+        }
         switch state {
         case .interrupted, .recovering, .needsForeground:
             if isRunning, case .recovering = state, !isAppActive {
@@ -1124,7 +1470,9 @@ final class IntercomController: ObservableObject {
             latency = snapshot
         }
         if meterTimer == nil {
-            refreshRemoteTalking(secondsSinceAudio: pipeline.snapshot().secondsSinceRemoteAudio)
+            let pipelineSnapshot = pipeline.snapshot()
+            refreshRemoteTalking(secondsSinceAudio: pipelineSnapshot.secondsSinceRemoteAudio)
+            publishIncomingSampleRate(pipelineSnapshot.incomingSampleRate)
         }
         if let deadline = talkLatchDeadline, MonotonicTime.now() >= deadline {
             setTalkLatched(false, reason: "timeout after \(Int(Self.talkLatchTimeout)) s")
@@ -1154,7 +1502,14 @@ final class IntercomController: ObservableObject {
         if stats != statistics {
             statistics = stats
         }
+        publishIncomingSampleRate(snapshot.incomingSampleRate)
         refreshRemoteTalking(secondsSinceAudio: snapshot.secondsSinceRemoteAudio)
+    }
+
+    private func publishIncomingSampleRate(_ rate: Int?) {
+        if incomingSampleRate != rate {
+            incomingSampleRate = rate
+        }
     }
 
     private func refreshRemoteTalking(secondsSinceAudio: TimeInterval) {
@@ -1187,6 +1542,7 @@ final class IntercomController: ObservableObject {
             + " jitter target=\(stats.targetDelayMs)ms depth=\(stats.depthMs)ms received=\(stats.received)"
             + " underruns=\(stats.underruns) concealed=\(stats.concealed) late=\(stats.lateDropped)"
             + " trimmed=\(stats.trimmed) lockMisses=\(stats.renderLockMisses)"
+            + " wire=\(effectiveWireRate.sampleRate) in=\(incomingSampleRate.map(String.init) ?? "-")"
             + " warning=\(warning.map { String(describing: $0) } ?? "none")"
         Self.healthLog.notice("\(line, privacy: .public) peers=[\(peerSummary, privacy: .private)]")
     }
@@ -1196,6 +1552,7 @@ final class IntercomController: ObservableObject {
     private func tearDown() {
         stateTimer = nil
         stopMeterTimer()
+        cancelTestLoopback()
         wifiMonitor?.stop()
         wifiMonitor = nil
         setTalkLatched(false, reason: "stop")
@@ -1219,11 +1576,73 @@ final class IntercomController: ObservableObject {
         route = .unknown
         inputDescription = ""
         roundTripMs = nil
+        incomingSampleRate = nil
         isAudioPaused = false
         audioState = .stopped
         latency = AudioLatencySnapshot()
         backgroundActivity.end(Self.audioWindow)
         updateSessionStatus(.stopped)
         UIApplication.shared.isIdleTimerDisabled = false
+    }
+}
+
+/// Feeds one test recording into the local jitter buffer at the cadence a peer's packets arrive
+/// at: one every 20 ms from a `DispatchSourceTimer` on the controller's loopback queue, with a
+/// tight leeway so the buffer sees a steady stream and not timer jitter. The packetizer is
+/// mutated on that queue and its progress read from the main actor, hence the lock. `finished`
+/// fires once, on the queue, after the last packet; the timer cancels itself then. Not main-actor
+/// isolated: the timer handler runs off the main thread.
+private final class LoopbackPlayer: @unchecked Sendable {
+    let packetCount: Int
+    let durationMs: Int
+
+    private let lock = NSLock()
+    /// Guarded by `lock`.
+    private var packetizer: LoopbackPacketizer
+    /// Guarded by `lock`.
+    private var timer: DispatchSourceTimer?
+
+    init(packetizer: LoopbackPacketizer) {
+        self.packetizer = packetizer
+        packetCount = packetizer.packetCount
+        durationMs = packetizer.durationMs
+    }
+
+    deinit {
+        timer?.cancel()
+    }
+
+    var remainingPackets: Int {
+        lock.withLock { packetizer.remainingPackets }
+    }
+
+    /// Starts pacing on `queue`. `push` runs there for every packet; `finished` once after the last.
+    func start(on queue: DispatchQueue, push: @escaping @Sendable (AudioPacket) -> Void,
+               finished: @escaping @Sendable () -> Void) {
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(1_000 / IntercomProtocol.framesPerSecond),
+                       leeway: .milliseconds(2))
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            let packet = self.lock.withLock { self.packetizer.next() }
+            guard let packet else {
+                self.cancel()
+                finished()
+                return
+            }
+            push(packet)
+        }
+        lock.withLock { self.timer = timer }
+        timer.resume()
+    }
+
+    /// Stops pacing; a tick already running on the queue completes. Safe to call more than once.
+    func cancel() {
+        let timer = lock.withLock { () -> DispatchSourceTimer? in
+            let current = self.timer
+            self.timer = nil
+            return current
+        }
+        timer?.cancel()
     }
 }

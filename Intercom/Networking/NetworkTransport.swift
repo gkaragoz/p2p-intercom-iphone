@@ -223,6 +223,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             appVersion: appVersion
         )
         configuration.keyTag = pairingKey.keyTag
+        configuration.capabilities = IntercomProtocol.Network.Capability.multiRateAudio
         machine = LinkStateMachine(configuration: configuration, authenticator: pairingKey.helloAuthenticator,
                                    rng: SplitMix64())
         audioLock.withLock { audioEpoch = configuration.localEpoch }
@@ -449,7 +450,8 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             scheduleListenerRetry()
             return
         }
-        let record = DiscoveryRecord(peerID: localPeerID, displayName: displayName, keyTag: pairingKey.keyTag)
+        let record = DiscoveryRecord(peerID: localPeerID, displayName: displayName, keyTag: pairingKey.keyTag,
+                                     capabilities: IntercomProtocol.Network.Capability.multiRateAudio)
         listener.service = NWListener.Service(name: localPeerID.rawValue, type: IntercomProtocol.Network.serviceType,
                                               domain: nil, txtRecord: NWTXTRecord(record.txtRecord))
         listener.stateUpdateHandler = { [weak self, weak listener] state in

@@ -46,7 +46,16 @@ Canlı Etkinlik gösterir.
   Bağlantı kopunca/gelince ya da ses duraklayınca sessiz bildirim ve kulağa kısa bir ton gelir.
 - **Düşük gecikme:** 20 ms'lik sıkıştırılmamış PCM kareleri UDP üzerinden gider. Mikrofon, gerçek
   zamanlı bir `AVAudioSinkNode` ile alınır. Alıcıdaki oynatma tamponu, ölçülen ağ dalgalanmasına göre
-  kendini 40–200 ms arasında ayarlar.
+  kendini 40–200 ms arasında (Dengeli profil) ayarlar.
+- **Ses kalitesi ve gecikme profili:** Hat örnekleme hızı Ayarlar'dan seçilir: Düşük 8 kHz, Standart
+  16 kHz (varsayılan), Yüksek 24 kHz, En yüksek 32 kHz; kare her zaman 20 ms. İki telefon farklı
+  kalitede olabilir: alıcı kendi hızında çalar, farklı hızda gelen ses yeniden örneklenir. Karşı telefon
+  eski bir sürümse uygulama kendiliğinden 16 kHz gönderir. Gecikme profili (Hızlı / Dengeli / Güvenli)
+  otomatik oynatma tamponunun sınırlarını ve G/Ç tamponunu belirler.
+- **Ses efektleri, kendi sesini duyma ve test kaydı:** Mikrofon efekti (Çocuk, Sincap, Kalın, Dev,
+  Robot, Telsiz, Megafon, Mağara) ve mikrofon EQ'su karşı tarafın duyduğunu, dinleme EQ'su yalnızca
+  sizin duyduğunuzu değiştirir. Kablolu kulaklıkla kendi sesinizi (sidetone) duyabilirsiniz.
+  **5 sn kaydet ve dinle**, sesinizi tam karşı tarafa gittiği haliyle dinletir.
 - **Şifreli bağlantı:** Ağ motoru her paketi ChaChaPoly ile şifreler. İsteğe bağlı eşleştirme kodu
   yalnızca aynı kodu kullanan telefonların bağlanmasını sağlar.
 - **AirPods desteği:** AirPods sapından sessize alma hareketi uygulamadaki sessiz düğmesiyle eşlenir
@@ -62,8 +71,9 @@ iPhone A (gönderen)                                   iPhone B (alan)
 
 Mikrofon (AirPods / dahili)                            AirPods / hoparlör
   │ AVAudioSinkNode (gerçek zamanlı iş parçacığı)        ▲ AVAudioSourceNode (gerçek zamanlı)
-  ▼ CaptureRing (kilitsiz halka tampon)                  │ PlaybackRenderer (+ bağlantı tonları)
-  ▼ CaptureWorker: AVAudioConverter → 16 kHz Int16       │ JitterBuffer (uyarlanır hedef 40–200 ms)
+  ▼ CaptureRing (kilitsiz halka tampon)                  │ PlaybackRenderer (+ tonlar, dinleme EQ)
+  ▼ CaptureWorker: AVAudioConverter → 8–32 kHz Int16     │ JitterBuffer (uyarlanır hedef, profil sınırları)
+  ▼ VoiceEffectProcessor (efekt + EQ, isteğe bağlı)      │ InboundRateAdapter (hız farklıysa yeniden örnekle)
   ▼ 20 ms kare → TransmitGate (PTT / VOX / açık hat)     │ ChaChaPoly aç + tekrar penceresi
   ▼ AudioPacket → NetDatagram, ChaChaPoly ile mühürle    │ NetDatagram çöz
   └──────────── UDP (NWConnection, .interactiveVoice) ───┘
@@ -73,8 +83,8 @@ Mikrofon (AirPods / dahili)                            AirPods / hoparlör
 
 | Katman | Klasör | Görev |
 |---|---|---|
-| **Core** (platformdan bağımsız) | `Intercom/Core/` | Saf, saati dışarıdan verilen ve birim testli mantık: `LinkStateMachine` (Ağ motorunun el sıkışma, canlılık, yeniden bağlanma, tarayıcı politikası), `NetDatagram` hat biçimi, `JitterBuffer` + `PlayoutDelayEstimator`, `AudioRecoveryMachine` (ses kesinti politikası), `SessionStatusMachine` (durum, uyarı, ton ve bildirim kararları), `UpdateThrottle`, `CueTone`. Linux'ta `swift test` ile test edilir. |
-| **Audio** | `Intercom/Audio/` | `AVAudioSession` (`.playAndRecord` + `.voiceChat` + Bluetooth HFP + hoparlör), `AVAudioEngine` grafiği, sink/tap kaydı, oynatma, gözetleyici (watchdog), sistem sessize alma durumu, gecikme sayaçları. |
+| **Core** (platformdan bağımsız) | `Intercom/Core/` | Saf, saati dışarıdan verilen ve birim testli mantık: `LinkStateMachine` (Ağ motorunun el sıkışma, canlılık, yeniden bağlanma, tarayıcı politikası), `NetDatagram` hat biçimi, `JitterBuffer` + `PlayoutDelayEstimator`, `AudioRecoveryMachine` (ses kesinti politikası), `SessionStatusMachine` (durum, uyarı, ton ve bildirim kararları), `UpdateThrottle`, `CueTone`, `WireRate` / `LatencyProfile` / `VoiceEffectPreset` / `EQPreset` (ses kalitesi, gecikme profili ve efekt/EQ ön ayarları; saf veri), `Resampler` + `InboundRateAdapter` (hat hızları arası polifaz pencereli-sinc yeniden örnekleme), `Biquad` / `BiquadChain` (EQ), `TestRecorder` + `LoopbackPacketizer` (test kaydı). Linux'ta `swift test` ile test edilir. |
+| **Audio** | `Intercom/Audio/` | `AVAudioSession` (`.playAndRecord` + `.voiceChat` + Bluetooth HFP + hoparlör), `AVAudioEngine` grafiği, sink/tap kaydı, oynatma (dinleme EQ'su render geri çağrısında), kendi sesini duyma karıştırıcısı (sidetone: `inputNode → AVAudioMixerNode → mainMixer`), `VoiceEffectProcessor` (mikrofon efekti + mikrofon EQ; kayıt iş parçacığında çalışan ayrı, çevrimdışı bir `AVAudioEngine`), gözetleyici (watchdog), sistem sessize alma durumu, gecikme sayaçları. |
 | **Networking** | `Intercom/Networking/` | `NetworkTransport` (varsayılan; Network framework), `MultipeerTransport` (eski motor), `PairingKey` + `ChaChaPolySealer` (anahtar türetme ve şifreleme), kurulum kimliği, Wi‑Fi durumu. |
 | **Model** | `Intercom/Model/` | `IntercomController` (ana aktör, tek örnek), `AudioPipeline`, `AppSettings`, `LocalNotifier`, `BackgroundActivity`. |
 | **LiveActivity** | `Intercom/LiveActivity/` | `LiveActivityCoordinator`: denetleyici durumunu Canlı Etkinliğe yansıtır, düğmelerin intent'lerini çalıştırır. |
@@ -85,9 +95,10 @@ Mikrofon (AirPods / dahili)                            AirPods / hoparlör
 Proje Xcode'un dosya sistemiyle eşitlenen klasörlerini kullanır: `Intercom/`, `IntercomLiveActivity/`
 ya da `Shared/` altına eklenen her dosya pbxproj düzenlemeden ilgili hedefe girer.
 
-Ses **sıkıştırılmadan** (PCM 16 kHz, ≈256 kbit/s) gönderilir; Wi‑Fi için bu rahatça yeterlidir ve
-kodek gecikmesi yoktur. AirPods'un mikrofonu kullanıldığında Bluetooth zaten HFP profiline (16 kHz
-geniş bant) geçtiği için daha yüksek örnekleme hızı bir şey kazandırmaz.
+Ses **sıkıştırılmadan** (Int16 PCM; varsayılan 16 kHz ≈ 256 kbit/s, Ayarlar ▸ Ses ▸ Ses kalitesi ile
+8 kHz 128 kbit/s, 24 kHz 384 kbit/s ya da 32 kHz 512 kbit/s) gönderilir; Wi‑Fi için bu rahatça
+yeterlidir ve kodek gecikmesi yoktur. AirPods'un mikrofonu kullanıldığında Bluetooth zaten HFP
+profiline (16 kHz geniş bant) geçtiği için daha yüksek örnekleme hızı o rotada bir şey kazandırmaz.
 
 ## Gereksinimler
 
@@ -308,12 +319,20 @@ satırdaki **Bağlan** düğmesine dokunun.
 | | Arka plan bildirimleri | Varsayılan açık. |
 | | Bağlantı sesleri | Bağlandı / koptu / yeniden bağlandı tonları. Varsayılan açık. |
 | Gönderim | Mod, Ses eşiği | VOX modunda gösterge, normal konuşurken işaretin sağına geçmeli, sessizken solunda kalmalı. |
-| Ses | Otomatik oynatma tamponu | Varsayılan açık: tampon ölçülen dalgalanmaya göre 40–200 ms arasında ayarlanır. Kapatınca **Oynatma tamponu** kaydırıcısıyla 20–300 ms sabit değer seçilir. |
+| Ses | Ses kalitesi | Hat örnekleme hızı: **Düşük** 8 kHz (128 kbit/s), **Standart** 16 kHz (varsayılan; eski biçimle aynı), **Yüksek** 24 kHz (384 kbit/s), **En yüksek** 32 kHz (512 kbit/s). Kare her zaman 20 ms. Her telefon kendi hızını seçer ve gelen sesi kendi hızında çalar; farklı hızda gelen ses ağ iş parçacığında yeniden örneklenir (polifaz pencereli-sinc), iki telefon farklı kalitede olabilir. Karşı telefon eski bir sürümse (yetenek biti yok: TXT `c` / HELLO `capabilities` bit 0) uygulama kendiliğinden 16 kHz gönderir ve burada turuncu bir uyarı gösterir. AirPods'un HFP mikrofonu zaten 16 kHz'dir. 32 kHz üst sınırdır: 20 ms'lik kare tek bir Wi‑Fi MTU'suna sığmalıdır (640 × 2 bayt + başlıklar ≈ 1,3 KB). |
+| | Gecikme profili | **Hızlı** (otomatik oynatma tamponu 20–120 ms, G/Ç tamponu 5 ms), **Dengeli** (40–200 ms, 10 ms; varsayılan, eski davranış), **Güvenli** (100–300 ms, 20 ms). Yalnızca otomatik tamponun sınırlarını ve G/Ç tamponunu belirler; otomatik tampon kapalıyken sabit kaydırıcı olduğu gibi geçerlidir. |
+| | Otomatik oynatma tamponu | Varsayılan açık: tampon ölçülen dalgalanmaya göre gecikme profilinin sınırları içinde (Dengeli: 40–200 ms) ayarlanır. Kapatınca **Oynatma tamponu** kaydırıcısıyla 20–300 ms sabit değer seçilir. |
 | | Kayıt | **Düşük gecikme** (varsayılan, `AVAudioSinkNode`) ya da **Uyumlu** (`installTap`). Uyumlu yalnızca mikrofon çalışmazsa; iOS tap'e 100 ms'lik parçalar verebilir. Düşük gecikme yolu başlamazsa ya da 1 saniye içinde ses gelmezse uygulama kendiliğinden tap'e geçer. |
 | | Ses işleme | Yankı giderme ve otomatik kazanç. Varsayılan açık; yalnızca kulaklıkla kapatın. Değiştirmek ses motorunu yeniden kurar. |
+| | Kendi sesimi duy, Düzey | Sidetone: mikrofon (ses işleme sonrası, efektsiz) canlı ses grafiğinde doğrudan çıkışa karışır (`inputNode → AVAudioMixerNode → mainMixer`), ağdan geçmez. Yalnızca kablolu kulaklık / kulaklık setinde çalışır; hoparlörde, ahizede ve sessizdeyken geri besleme olmasın diye kendiliğinden susar. Bluetooth kulaklık kendi gecikmesini ekler. |
 | | Ses düzeyi, Ekranı açık tut | Ekranı açık tut varsayılan olarak **kapalıdır**: ses ekran kapalıyken de akar. |
-| Tanılama | | Bağlantı motoru, ses çıkışı, giriş biçimi, karşı tarafın uygulama sürümü, gönderilen/alınan kare, gizlenen kayıp, geç gelen, tampon boşalması. |
-| Gecikme | | Her saniye yenilenir: ses durumu, tahmini ağızdan kulağa gecikme, gidiş-dönüş, bağlantı yolu, oynatma hedefi ve derinliği, kayıt yolu, giriş biçimi, ses işleme, örnekleme hızı, G/Ç tamponu, donanım gecikmesi, geri çağrı başına örnek, kayıt aralığı ve gecikmesi, oynatma örnekleri, saniyedeki boşalma/gizleme/geç/kilit kaçırma sayıları. |
+| Ses efektleri | Mikrofon efekti | **Kapalı**, Çocuk, Sincap, Kalın, Dev, Robot, Telsiz, Megafon, Mağara: karşı tarafın duyduğunu değiştirir. Ayrı, çevrimdışı bir `AVAudioEngine`'de (manual rendering: `AVAudioUnitTimePitch` / `AVAudioUnitDistortion` / `AVAudioUnitReverb`) kayıt iş parçacığında işlenir; canlı ses grafiğine dokunulmaz. Perde değiştiren efektler gecikme ekler: Ayarlar ▸ Gecikme ▸ *Efekt gecikmesi*, ağızdan kulağa tahminine dahildir. VOX eşiği ve giriş göstergesi ham mikrofon düzeyinden ölçülür. Efektler kapalıyken kod yolu tek bir nil denetimidir. |
+| | Mikrofon EQ | **Kapalı**, Bas güçlendirme, Orta ton vurgusu, Net ses, Tiz, Dolgun ses, Telefon: efektten sonra, gönderilmeden önce uygulanır; karşı tarafın duyduğunu değiştirir. |
+| | Dinleme EQ | Aynı ön ayarlar, yalnızca bu telefonda: karşı tarafın sesine gerçek zamanlı oynatma render'ında uygulanan biquad zinciri (Core, saf Swift, Linux'ta test edilir). Karşı taraf etkilenmez. |
+| | Test kaydı | **5 sn kaydet ve dinle:** mikrofon 5 saniye boyunca tam gönderildiği haliyle (ses kalitesi + efekt + mikrofon EQ) belleğe alınır, sonra yerel jitter tamponuna 20 ms'lik paketler olarak verilir ve normal oynatma yolundan (dinleme EQ dahil) dinletilir. PTT'yi basılı tutmak gerekmez; dinletme sırasında karşı tarafın sesi duraklatılır; diske yazılmaz. **Yeniden dinle** aynı kaydı tekrar çalar. |
+| Tanılama | | Bağlantı motoru, ses çıkışı, giriş biçimi, gelen ses (karşı telefonun gönderdiği hız; sizinkinden farklıysa *32 kHz → 16 kHz* biçiminde; `health` günlük satırında `wire=` / `in=`), karşı tarafın uygulama sürümü, gönderilen/alınan kare, gizlenen kayıp, geç gelen, tampon boşalması. |
+| Gecikme | | Her saniye yenilenir: ses durumu, tahmini ağızdan kulağa gecikme, efekt gecikmesi (mikrofon efekti açıkken), gidiş-dönüş, bağlantı yolu, oynatma hedefi ve derinliği, kayıt yolu, giriş biçimi, ses işleme, örnekleme hızı, G/Ç tamponu, donanım gecikmesi, geri çağrı başına örnek, kayıt aralığı ve gecikmesi, oynatma örnekleri, saniyedeki boşalma/gizleme/geç/kilit kaçırma sayıları. `latency` günlük satırında hat hızı `wire=`, efekt gecikmesi `fx=` olarak görünür. |
+| Hakkında | | Sürüm, protokol (PCM hızı olarak seçili ses kalitesi) ve GitHub bağlantısı. |
 
 ## Canlı Etkinlik ve kilit ekranı denetimleri
 
@@ -461,6 +480,9 @@ doğrulanmadı**. İlk testlerde özellikle bunlara bakın; günlükler bunları
 | **AirPods sapıyla sessize alma** | Bu hareket iOS'ta CallKit kullanmayan bir `playAndRecord`/`voiceChat` uygulamasına sunulmayabilir; sunulursa `inputMuteStateChangeNotification` gelmeli ve uygulamanın sessiz düğmesi değişmeli. | AirPods ayarlarında sessize alma denetimi açıkken sapa basın; `audio` kategorisinde `system input mute changed` satırı ve ekrandaki düğme. |
 | **Hücresel iPhone'larda ağsız Wi‑Fi ile doğrudan bağlantı** | iOS 26 için çözümsüz bir Apple forum bildirimi var: hücresel özellikli iPhone'lar, Wi‑Fi açık ama bir ağa katılmamışken doğrudan Wi‑Fi ile birbirini bulamayabiliyor (hücreselsiz cihazlar bulabiliyor). Network framework de bundan etkileniyor. İki test telefonunda da hücresel var. | [T3 testi](#çevrimdışı-test-listesi). Bulunamazsa geçici çözüm: iki telefonu internetsiz de olsa aynı Wi‑Fi ağına ya da modeme bağlamak. |
 | **Kayıt tamponu boyutları** | Düşük gecikme (sink) yolu simülatörde 512 örnek/geri çağrı verdi; Uyumlu (tap) yol 4410 örneklik (100 ms) parçalar verdi. Cihazda, özellikle AirPods HFP rotasında tap parçaları daha büyük olabilir (200 ms bildirimi var). İstenen 10 ms G/Ç tamponunun ne kadarının verildiği de bilinmiyor. | Ayarlar ▸ Gecikme: *Kayıt yolu*, *Geri çağrı başına örnek*, *Kayıt gecikmesi*, *G/Ç tamponu*; `latency` günlük satırı. Hoparlör ve AirPods rotasında, iki kayıt modunda. |
+| **Kendi sesimi duy + Ses işleme** | Ses işleme (yankı giderme) açıkken sidetone karışımı, AEC'nin giden sesi yankı sanıp bastırmasına yol açmamalı; aksi halde karşı taraf sesi kısık ya da kesik duyar. Simülatörde ölçülemez. | Kablolu kulaklıkla, Ses işleme açık ve kapalı: karşı tarafın duyduğu düzey ve karşı taraf ses göstergesi; `audio` kategorisi. |
+| **Perde efektlerinin gecikmesi ve kalitesi** | `AVAudioUnitTimePitch` çevrimdışı motorda hazırlama için yaklaşık 80 ms gecikme ekler (motor kurulurken kalibre edilir); cihazda gecikme, işlemci yükü, ses kalitesi ve kaynak boşalması davranışı ölçülmedi. | Ayarlar ▸ Gecikme ▸ *Efekt gecikmesi*, `latency` satırındaki `fx=`; Çocuk / Sincap / Kalın / Dev / Robot ile karşı tarafın duyduğu ses, B'de tampon boşalması. |
+| **32 kHz'de Doğrudan Wi‑Fi** | 32 kHz'de her 20 ms'lik kare ≈ 1,3 KB'lık bir datagramdır (saniyede 50); AWDL'de bu boyuttaki paketlerin kayıp ve gecikme davranışı ölçülmedi. | İki telefonda En yüksek kalite, ağsız Doğrudan Wi‑Fi: Tanılama'da *Gizlenen kayıp* / *Tampon boşalması*, `health` satırında `wire=32000`; 16 kHz ile karşılaştırın. |
 | Arka planda bildirimler, kesinti sonrası akış | Arka planda gönderilen bildirimlerin kilit ekranında görünmesi, kabul edilen aramadan sonra karşı tarafa "ses duraklatıldı" bilgisinin gidebilmesi. | `notifications`, `background`, `controller` kategorileri. |
 | Doğrudan Wi‑Fi'nin kilitli ekranda gecikmesi | Ekranlar kapalıyken AWDL'nin gecikme davranışı belgelenmemiş. | Kilitliyken `latency` satırındaki RTT ve boşalma sayıları. |
 
@@ -569,10 +591,12 @@ uygulamayı Xcode ya da `devicectl` ile **kurun**, sonra telefonda **ana ekranda
 1. İki telefona **Release** derleme kurun (şemaların Run'ı zaten Release'tir), ikisi de aynı sürüm.
 2. **Hızlı okuma:** Ayarlar ▸ Gecikme bölümünde *Tahmini ağızdan kulağa gecikme*, *Gidiş-dönüş*,
    *Oynatma hedefi*, *G/Ç tamponu*, *Donanım gecikmesi*, *Kayıt yolu*, *Geri çağrı başına örnek*,
-   *Kayıt gecikmesi*. Tahmin; giriş gecikmesi + kayıt gecikmesi + RTT/2 + oynatma hedefi + G/Ç tamponu +
-   çıkış gecikmesinin toplamıdır ve karşı telefonun kayıt yolunun bununla aynı olduğunu varsayar.
+   *Kayıt gecikmesi*, mikrofon efekti açıkken *Efekt gecikmesi*. Tahmin; giriş gecikmesi + kayıt gecikmesi +
+   efekt gecikmesi + RTT/2 + oynatma hedefi + G/Ç tamponu + çıkış gecikmesinin toplamıdır ve karşı
+   telefonun kayıt yolunun bununla aynı olduğunu varsayar.
    Aynı değerler 5 saniyede bir `latency` kategorisine yazılır:
-   `capture=sink in=48000Hz/1ch vp=on io=10.0ms(pref 10.0) … | jb target=… depth=… | rtt=…ms m2e=…ms`.
+   `capture=sink in=48000Hz/1ch vp=on io=10.0ms(pref 10.0) sr=48000 wire=16000 fx=…ms … | jb target=… depth=… | rtt=…ms m2e=…ms`
+   (`fx=` yalnızca bir efekt gecikmesi varken yazılır).
 3. **Kayıt yolu karşılaştırması:** A telefonu Açık hat modunda sürekli konuşurken Kayıt'ı Düşük gecikme
    ve Uyumlu arasında değiştirin; hoparlör ve AirPods rotasında *Geri çağrı başına örnek* ve *Kayıt
    gecikmesi*ni not edin. B'de tampon boşalmasını izleyin.
@@ -664,16 +688,26 @@ Türler: `hello`, `helloAck`, `heartbeat`, `control`, `controlAck`, `audio`, `by
   kodundan türetilen HMAC etiketiyle doğrulanır.
 - Diğer her şey ChaChaPoly ile mühürlenir: başlık ek doğrulanmış veridir, nonce = yön ‖ dönem ‖ sayaç,
   64'lük tekrar penceresi.
-- `audio` yükü değişmeyen `AudioPacket` biçimidir: `"IC"` + sürüm + kodek + sıra no (UInt16) + zaman
-  damgası (UInt32, kayıt örnek saati) + örnek sayısı (UInt16) + Int16 LE örnekler (20 ms = 320 örnek).
+- `audio` yükü `AudioPacket` biçimidir: `"IC"` + sürüm + kodek + sıra no (UInt16) + zaman
+  damgası (UInt32, kayıt örnek saati) + örnek sayısı (UInt16) + Int16 LE örnekler. Kodek baytı hat
+  hızını söyler: **1 = 16 kHz** (eski biçim, her sürüm anlar), **2 = 8 kHz**, **3 = 24 kHz**,
+  **4 = 32 kHz**; hepsi Int16 LE mono, her paket 20 ms (160 / 320 / 480 / 640 örnek). Eski sürümler
+  1 dışındaki kodekleri düşürür; bu yüzden diğer hızlar yalnızca **yetenek biti** olan eşlere gönderilir:
+  HELLO / HELLO_ACK'teki `capabilities` sözcüğünün ve TXT kaydındaki `c` girdisinin **0. biti = çok
+  hızlı ses** (`IntercomProtocol.Network.Capability.multiRateAudio`). Biti olmayan bir eşe uygulama,
+  ayar ne derse desin 16 kHz gönderir. Alıcı kendi seçtiği hızda çalar: farklı hızda gelen paketler ağ
+  iş parçacığında, jitter tamponundan önce yeniden örneklenir (`InboundRateAdapter` + `Resampler`,
+  polifaz pencereli-sinc; zaman damgası yerel örnek saatine çevrilir). İki telefon farklı kalitede olabilir.
 - `control` güvenilir iletilir (250 ms'de bir yeniden gönderim, onay, tekrar süzme).
 
-Bonjour TXT kaydı: `v` (protokol), `id` (kurulum kimliği), `n` (ad), `k` (anahtar etiketi), `c` (yetenekler).
+Bonjour TXT kaydı: `v` (protokol), `id` (kurulum kimliği), `n` (ad), `k` (anahtar etiketi), `c` (yetenek
+bitleri; bit 0 = çok hızlı ses. Eski sürümlerde yoktur ve 0 sayılır).
 
 **Multipeer motoru** (`Intercom/Core/MultipeerFrame.swift`): her `MCSession.send` bir etiket baytıyla
 başlar: `0xA1` ses (`.unreliable`), `0xC1` JSON kontrol mesajı (`.reliable`), `0xB1` bye,
 `0xB2`/`0xB3` ping/pong (durum baytıyla), `0xB4` durum. Keşif bilgisi: `token` (kurulum kimliği), `name`, `v`,
-`epoch` (her başlatmada rastgele). Davet bağlamı (`MultipeerInvitation`): `0xD1` bağlan ya da `0xD2` bye +
+`epoch` (her başlatmada rastgele), `c` (yetenek bitleri, onaltılık; Ağ motorunun `c` girdisiyle aynı anlam,
+eski sürümlerde yok). Davet bağlamı (`MultipeerInvitation`): `0xD1` bağlan ya da `0xD2` bye +
 dönem (UInt32) + kurulum kimliği. *Bağlantıyı kes*'e basan telefon, bye çerçevesi yolda kaybolsa bile karşı
 taraf yeniden aramayı bıraksın diye, reddettiği davetleri (eş başına en fazla 5 saniyede bir) her zaman
 reddedilen bir bye davetiyle yanıtlar. Karşı tarafın bağlantı kesmesi yalnızca onu gönderen örnek için
@@ -697,6 +731,7 @@ geçerlidir: o telefon interkomu yeniden başlatırsa (yeni `epoch`) otomatik ba
   sessize alma, sistem arama arayüzü.
 - Kilit ekranından "sesi devam ettir" için `AudioRecordingIntent` denemesi.
 - 10 ms kareler (daha az paketleme gecikmesi, saniyede iki kat paket).
+- 48 kHz (10 ms kare gerektirir: 20 ms'lik 48 kHz karesi bir Wi‑Fi MTU'suna sığmaz).
 - Opus sıkıştırma; ikiden fazla cihaz.
 
 ## Lisans
@@ -723,9 +758,30 @@ free Apple IDs. It keeps working with the screen locked and shows a Live Activit
 - Silent local notifications while the app is not active ("Connection lost – reconnecting to X" after a
   3 s grace period, replaced by "Reconnected to X"; "Audio paused – open Intercom to resume") and
   short audio cues for connected / lost / reconnected. Both can be turned off in Settings.
-- Low latency: 20 ms uncompressed 16 kHz PCM over UDP, `AVAudioSinkNode` capture on the real‑time
+- Low latency: 20 ms uncompressed PCM (16 kHz by default) over UDP, `AVAudioSinkNode` capture on the real‑time
   thread, 10 ms preferred IO buffer, adaptive playout delay (40–200 ms), and a Latency section with an
   estimated mouth‑to‑ear figure.
+- **Audio quality** (Settings ▸ Audio): wire sample rate Low 8 kHz (128 kbit/s), Standard 16 kHz
+  (default, the original format), High 24 kHz (384 kbit/s) or Highest 32 kHz (512 kbit/s), always 20 ms
+  frames (`AudioPacket` codec byte 1 / 2 / 3 / 4). Each phone picks its own rate and plays at it; audio
+  arriving at another rate is resampled on the network thread (polyphase windowed sinc). A peer running
+  an older build (no `multiRateAudio` capability bit in HELLO / the `c` TXT entry) automatically gets
+  16 kHz, with an orange hint in Settings. 32 kHz is the ceiling so a 20 ms frame fits one Wi‑Fi MTU.
+- **Latency profiles:** Fast (adaptive playout 20–120 ms, 5 ms I/O buffer), Balanced (40–200 ms, 10 ms;
+  default, the previous behaviour), Safe (100–300 ms, 20 ms). The fixed playout slider is unaffected.
+- **Sidetone** ("Hear my own voice" + level): the processed, effect‑free microphone is mixed straight
+  into the output inside the live graph; wired headphones / headsets only, auto‑muted on speaker,
+  receiver and while muted (feedback); Bluetooth adds its own delay.
+- **Voice effects and EQ:** microphone effect (child, chipmunk, deep, giant, robot, radio, megaphone,
+  cave) and microphone EQ (bass boost, mid presence, voice clear, treble, loudness, telephone) change
+  what the peer hears; they run on the capture thread in a separate offline `AVAudioEngine` (manual
+  rendering: time‑pitch / distortion / reverb) and never touch the live graph. Pitch effects add delay,
+  shown as "Effect latency" and included in the mouth‑to‑ear estimate; VOX is measured on the raw
+  microphone. A listening EQ (same presets) applies locally in the render callback as a biquad chain.
+- **Test recording:** "Record 5 s and listen" captures your voice exactly as sent (quality + effect +
+  EQ) in memory, then feeds it into the local jitter buffer as 20 ms packets and plays it through the
+  normal receive path (listening EQ included); no PTT needed, the peer's audio is paused meanwhile,
+  nothing is written to disk; "Listen again" replays it.
 - English and Turkish UI.
 
 **Requirements and install**

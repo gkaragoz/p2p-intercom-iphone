@@ -58,6 +58,10 @@ struct AudioLatencySnapshot: Equatable, Sendable {
     var inputSampleRate: Double = 0
     var inputChannels = 0
     var session = AudioSessionMetrics()
+    /// Sample rate of the audio on the wire (`WireRate.sampleRate`); 0 until the pipeline is configured.
+    var wireSampleRate: Int = 0
+    /// Sender-side processing delay of the microphone effect chain; 0 while no effect is on.
+    var effectLatencyMs: Double = 0
 
     var captureCallbacksPerSecond: Double = 0
     var captureFramesPerCallbackMin = 0
@@ -92,7 +96,8 @@ struct AudioLatencySnapshot: Equatable, Sendable {
     /// Rough one-way delay from the peer's mouth to this phone's ear, assuming the peer's capture side
     /// behaves like this phone's (it runs the same build):
     ///
-    ///     sender:   input latency + capture delivery lag (includes the capture buffer) + 20 ms frame
+    ///     sender:   input latency + capture delivery lag (includes the capture buffer)
+    ///               + effect latency (only while a microphone effect is on) + 20 ms frame
     ///     network:  round-trip time / 2
     ///     receiver: playout target − 20 ms (a frame arriving on time waits that long) + I/O buffer
     ///               + output latency
@@ -102,7 +107,7 @@ struct AudioLatencySnapshot: Equatable, Sendable {
     var estimatedMouthToEarMs: Double? {
         guard capturePath != .none, session.ioBufferDuration > 0, jitterTargetMs > 0 else { return nil }
         let io = session.ioBufferDuration * 1000
-        return session.inputLatency * 1000 + deliveryLagAverageMs
+        return session.inputLatency * 1000 + deliveryLagAverageMs + effectLatencyMs
             + (roundTripMs ?? 0) / 2
             + Double(jitterTargetMs) + io + session.outputLatency * 1000
     }
@@ -115,6 +120,7 @@ struct AudioLatencySnapshot: Equatable, Sendable {
         let rtt = roundTripMs.map { "\(Int($0.rounded()))ms" } ?? "-"
         return "capture=\(capturePath.rawValue) in=\(rate) vp=\(voiceProcessing ? "on" : "off")"
             + " io=\(f(session.ioBufferDuration * 1000))ms(pref \(f(session.preferredIOBufferDuration * 1000))) sr=\(Int(session.sampleRate))"
+            + " wire=\(wireSampleRate)" + (effectLatencyMs > 0 ? " fx=\(f(effectLatencyMs))ms" : "")
             + " lat in=\(f(session.inputLatency * 1000)) out=\(f(session.outputLatency * 1000))"
             + " | cb=\(f(captureCallbacksPerSecond))/s frames=\(captureFramesPerCallbackMin)/\(f(captureFramesPerCallbackAverage))/\(captureFramesPerCallbackMax)"
             + " gap=\(f(maxCaptureIntervalMs))ms lag=\(f(deliveryLagAverageMs))/\(f(deliveryLagMaxMs))ms ovr=\(f(captureOverrunSamplesPerSecond, 0))"
@@ -145,6 +151,8 @@ struct AudioLatencySampler {
         var inputSampleRate: Double = 0
         var inputChannels = 0
         var session = AudioSessionMetrics()
+        var wireSampleRate: Int = 0
+        var effectLatencyMs: Double = 0
         var roundTripMs: Double?
     }
 
@@ -156,6 +164,8 @@ struct AudioLatencySampler {
         snapshot.inputSampleRate = context.inputSampleRate
         snapshot.inputChannels = context.inputChannels
         snapshot.session = context.session
+        snapshot.wireSampleRate = context.wireSampleRate
+        snapshot.effectLatencyMs = context.effectLatencyMs
         snapshot.roundTripMs = context.roundTripMs
         snapshot.jitterTargetMs = jitter.targetDelayMs
         snapshot.jitterDepthMs = jitter.depthMs

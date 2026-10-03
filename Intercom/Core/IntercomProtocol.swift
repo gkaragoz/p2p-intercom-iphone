@@ -15,8 +15,11 @@ enum IntercomProtocol {
     static let sampleRate: Double = 16_000
     static let channelCount: Int = 1
 
-    /// Every packet carries exactly one 20 ms frame.
+    /// Every packet carries exactly one 20 ms frame, whatever the `WireRate`.
     static let frameDuration: TimeInterval = 0.020
+    /// `1 / frameDuration`: packets per second, and the divisor that turns a sample rate into a frame size.
+    static let framesPerSecond: Int = 50
+    /// Frame size at the standard 16 kHz rate; other rates derive theirs from `WireRate.frameSamples`.
     static let frameSamples: Int = 320 // 16_000 * 0.020
     static let frameBytes: Int = frameSamples * MemoryLayout<Int16>.size
 
@@ -33,6 +36,14 @@ enum IntercomProtocol {
         static let wireVersion: UInt8 = 2
         /// Session protocol version carried in HELLO and the TXT record; peers must match exactly.
         static let protocolVersion: UInt16 = 2
+
+        /// Bits of the `capabilities` word in HELLO / HELLO_ACK and the `c` TXT entry. A peer that
+        /// lacks a bit is older than the feature; the sender adapts instead of breaking it.
+        enum Capability {
+            /// Accepts every `AudioPacket.Codec` (8–32 kHz), not only 16 kHz. Without it the local
+            /// side sends at `WireRate.standard` whatever the audio quality setting says.
+            static let multiRateAudio: UInt32 = 1 << 0
+        }
     }
 
     /// Keys used in the MultipeerConnectivity discovery info dictionary.
@@ -42,5 +53,8 @@ enum IntercomProtocol {
         static let version = "v"
         /// Random per transport start (decimal `UInt32`): a changed value means the peer restarted.
         static let epoch = "epoch"
+        /// Capability bits (hex `UInt32`, same meaning as the Network engine's `c` TXT entry);
+        /// absent in older builds, which therefore read as 0.
+        static let capabilities = "c"
     }
 }

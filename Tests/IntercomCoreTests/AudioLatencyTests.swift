@@ -92,4 +92,37 @@ final class AudioLatencyTests: XCTestCase {
         XCTAssertTrue(snapshot.logLine.contains("m2e=74ms"))
         XCTAssertTrue(snapshot.logLine.contains("rtt=8ms"))
     }
+
+    func testEffectLatencyAndWireRateInTheEstimateAndTheLog() {
+        var snapshot = AudioLatencySnapshot()
+        snapshot.capturePath = .sinkNode
+        snapshot.session.ioBufferDuration = 0.010
+        snapshot.session.inputLatency = 0.002
+        snapshot.session.outputLatency = 0.005
+        snapshot.deliveryLagAverageMs = 13
+        snapshot.jitterTargetMs = 40
+        snapshot.roundTripMs = 8
+        snapshot.wireSampleRate = 16_000
+        XCTAssertEqual(snapshot.estimatedMouthToEarMs ?? 0, 74, accuracy: 1e-9, "without an effect the estimate is unchanged")
+        XCTAssertTrue(snapshot.logLine.contains(" wire=16000"))
+        XCTAssertFalse(snapshot.logLine.contains("fx="), "the effect field only appears while an effect adds delay")
+
+        snapshot.effectLatencyMs = 30
+        XCTAssertEqual(snapshot.estimatedMouthToEarMs ?? 0, 104, accuracy: 1e-9, "the sender's effect delay adds to the estimate")
+        XCTAssertTrue(snapshot.logLine.contains(" fx=30.0ms"))
+        XCTAssertTrue(snapshot.logLine.contains("m2e=104ms"))
+    }
+
+    func testSamplerCopiesWireRateAndEffectLatencyFromTheContext() {
+        XCTAssertEqual(AudioLatencySampler.Context().wireSampleRate, 0)
+        XCTAssertEqual(AudioLatencySampler.Context().effectLatencyMs, 0)
+        var sampler = AudioLatencySampler()
+        var context = AudioLatencySampler.Context()
+        context.wireSampleRate = 32_000
+        context.effectLatencyMs = 12.5
+        let snapshot = sampler.sample(reading: AudioCounterReading(), jitter: JitterBuffer.Statistics(),
+                                      context: context, now: MonotonicTime(seconds: 1))
+        XCTAssertEqual(snapshot.wireSampleRate, 32_000)
+        XCTAssertEqual(snapshot.effectLatencyMs, 12.5)
+    }
 }

@@ -16,17 +16,23 @@ import Foundation
 /// * When capture itself stops (engine stopped, interrupted or rebuilt) no frames arrive, so the
 ///   sample clock would not reflect the pause. `markDiscontinuity()` jumps it forward instead, so
 ///   the receiver still sees a new talk spurt rather than a burst of very late packets.
+/// * Every packet is stamped with `codec`, and the sample clock counts samples at that codec's
+///   rate, so the frames fed in must already be at the wire rate.
 ///
 /// Not thread-safe; the caller serializes access (the capture worker, under the pipeline lock).
 struct AudioPacketizer {
     let preRollCapacity: Int
+    /// Wire format of every packet; also the rate of the sample clock.
+    let codec: AudioPacket.Codec
     private(set) var nextSequence: UInt16
     private(set) var sampleClock: UInt32
     /// Most recent unsent frames, oldest first, at most `preRollCapacity`.
     private var recent: [(timestamp: UInt32, samples: [Int16])] = []
 
-    init(preRollCapacity: Int = TransmitGate.defaultPreRollFrames, initialSequence: UInt16 = 0, initialSampleClock: UInt32 = 0) {
+    init(preRollCapacity: Int = TransmitGate.defaultPreRollFrames, codec: AudioPacket.Codec = .pcm16Mono16k,
+         initialSequence: UInt16 = 0, initialSampleClock: UInt32 = 0) {
         self.preRollCapacity = max(0, preRollCapacity)
+        self.codec = codec
         nextSequence = initialSequence
         sampleClock = initialSampleClock
         recent.reserveCapacity(self.preRollCapacity + 1)
@@ -61,9 +67,9 @@ struct AudioPacketizer {
         return packets
     }
 
-    /// How far `markDiscontinuity()` advances the sample clock: one second at the wire rate. Any
+    /// How far `markDiscontinuity()` advances the sample clock: one second at the codec's rate. Any
     /// jump of more than half a frame is recognised by the receiver; a whole second is unambiguous.
-    static let discontinuitySamples = Int(IntercomProtocol.sampleRate)
+    var discontinuitySamples: Int { codec.sampleRate }
 
     /// Forgets remembered frames; numbering and the sample clock continue.
     mutating func discardPreRoll() {
@@ -74,11 +80,11 @@ struct AudioPacketizer {
     /// packet must start a new talk spurt at the receiver. Sequence numbers stay contiguous.
     mutating func markDiscontinuity() {
         recent.removeAll(keepingCapacity: true)
-        sampleClock &+= UInt32(Self.discontinuitySamples)
+        sampleClock &+= UInt32(discontinuitySamples)
     }
 
     private mutating func makePacket(timestamp: UInt32, samples: [Int16]) -> AudioPacket {
-        let packet = AudioPacket(sequence: nextSequence, timestamp: timestamp, samples: samples)
+        let packet = AudioPacket(sequence: nextSequence, timestamp: timestamp, codec: codec, samples: samples)
         nextSequence &+= 1
         return packet
     }
