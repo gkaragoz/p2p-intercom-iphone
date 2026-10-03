@@ -34,7 +34,7 @@ Canlı Etkinlik gösterir.
 - **Otomatik başlama ve eşleşme:** Uygulamayı iki telefonda açmanız yeterli. İnterkom kendiliğinden
   başlar, telefonlar birbirini bulur ve bağlanır.
 - **Kısa kesintilere dayanıklı, kendiliğinden yeniden bağlanma:** Menzil sınırında Doğrudan Wi‑Fi
-  saniyelerce susup geri gelebilir. Uygulama bunu hemen kopuş saymaz: eski bağlantıyı 15 saniyeye kadar
+  saniyelerce susup geri gelebilir. Uygulama bunu hemen kopuş saymaz: eski bağlantıyı 30 saniyeye kadar
   korur, yanında yenisini dener ve eş duyulursa el sıkışmasız devam eder. Gerçekten koparsa vazgeçmeden
   yeniden dener (ilk denemeler hemen, sonra en fazla 2 saniye arayla). Durum kartında deneme sayısı ve
   geçen süre görünür.
@@ -396,7 +396,7 @@ ton çaldırmaz; "koptu" tonu ancak kesinti sürerse çalar, "yeniden bağlandı
 | Altyapı | Network framework: `NWListener` + `NWBrowser` (Bonjour `_intercom-nw._udp`), eş başına bir UDP `NWConnection` | MultipeerConnectivity (`p2p-intercom`) |
 | Yol | Doğrudan Wi‑Fi (AWDL) veya aynı Wi‑Fi ağı; hücresel yasak; yol çipi kesin | Çerçeve seçer; yol görünmez |
 | Kim arar | Kurulum kimliği küçük olan hemen, diğeri 750 ms sonra; çakışmalar deterministik çözülür | Ada, sonra kurulum kimliğine göre seçim |
-| Canlılık | Ön planda 200 ms, arka planda 250 ms kalp atışı; 0,6 s (arka planda 0,75 s) sessizlikte "zayıf", 2 s (arka planda 3 s) sessizlikte "takıldı" (doğrulanmış ses paketi de canlılık sayılır). Takılan bağlantı 15 s korunur: eski akışa 1 sn kendiliğinden dönme şansı verilir, sonra yanında yedek bağlantı denenir; eş duyulursa (bir veri paketi geldiyse) el sıkışmasız devam edilir; 15 s sonra kopmuş sayılır. Tarama yalnızca takılı bağlantı 1 sn'yi aşınca başlar. Kurulalı 3 sn'den uzun olmuş bir bağlantıya karşı gelen yeni HELLO çakışma değil yenileme sayılır (karşı taraf sağır olabilir) | 1 s'de bir ping; ~4 s sessizlikte kopmuş sayılır |
+| Canlılık | Ön planda 200 ms, arka planda 250 ms kalp atışı; 0,6 s (arka planda 0,75 s) sessizlikte "zayıf", 2 s (arka planda 3 s) sessizlikte "takıldı" (doğrulanmış ses paketi de canlılık sayılır). Takılan bağlantı 30 s korunur: eski akışa 1 sn kendiliğinden dönme şansı verilir, sonra yanında yedek bağlantı denenir; eş duyulursa (bir veri paketi geldiyse) el sıkışmasız devam edilir; 30 s sonra kopmuş sayılır. Tarama yalnızca takılı bağlantı 1 sn'yi aşınca başlar. Kurulalı 3 sn'den uzun olmuş bir bağlantıya karşı gelen yeni HELLO çakışma değil yenileme sayılır (karşı taraf sağır olabilir) | 1 s'de bir ping; ~4 s sessizlikte kopmuş sayılır |
 | El sıkışma | Akış 8 s içinde hazır olmalı; HELLO yanıtı ilk denemede 3 s, sonrakilerde 5 s (HELLO her 0,25 s tekrarlanır) | Çerçeve yönetir (davet 10 s, bekçi 12 s) |
 | Yeniden deneme | 0 / 0,25 / 0,5 / 1 / 2 s (±%20), asla vazgeçmez; ön plana dönüşte ve ağ yolu değişince hemen (bağlantı sağlıklıysa tarayıcı yeniden başlamaz) | 1 / 2 / 3 / 5 s (±%20), asla vazgeçmez |
 | Şifreleme | Bağlantı başına yön başına ChaChaPoly anahtarı, tekrar saldırısı penceresi | `MCSession` şifrelemesi (zorunlu) |
@@ -492,7 +492,7 @@ doğrulanmadı**. İlk testlerde özellikle bunlara bakın; günlükler bunları
 | Arka planda bildirimler, kesinti sonrası akış | Arka planda gönderilen bildirimlerin kilit ekranında görünmesi, kabul edilen aramadan sonra karşı tarafa "ses duraklatıldı" bilgisinin gidebilmesi. | `notifications`, `background`, `controller` kategorileri. |
 | Doğrudan Wi‑Fi'nin kilitli ekranda gecikmesi | Ekranlar kapalıyken AWDL'nin gecikme davranışı belgelenmemiş. | Kilitliyken `latency` satırındaki RTT ve boşalma sayıları. |
 | **Takılan bağlantının devamı** | Menzil sınırında AWDL sustuktan sonra eski `NWConnection`'ın aynı eş adresiyle kendiliğinden dönüp dönmediği, yoksa adresin değişip yalnızca yedek bağlantının mı işe yaradığı bilinmiyor. İki durumda da kopuş görünmemeli, ama hangisinin olduğu günlükte anlaşılır. | Bağlantı günlüğünde `stalled` sonrası `heard again … resumed without a new handshake` (eski akış döndü) ya da `replaces unhealthy link` (yedek devraldı). Kilitli ekranla da tekrarlayın. |
-| Takılma süresi ve ton | 15 sn'lik koruma süresinin ve 2,5 sn'lik "koptu" duyurusunun sahada uygun olup olmadığı. | Sürüşten sonra günlükte `stalled` sürelerine ve kaç tanesinde ton çaldığına (`cue lost`) bakın. |
+| Takılma süresi ve ton | 30 sn'lik koruma süresinin ve 2,5 sn'lik "koptu" duyurusunun sahada uygun olup olmadığı. | Sürüşten sonra günlükte `stalled` sürelerine ve kaç tanesinde ton çaldığına (`cue lost`) bakın. |
 
 ## Test rehberi
 
@@ -585,7 +585,7 @@ sonra Intercom için hiçbir alan adı listelenmemeli.
 | # | Adım | Beklenen |
 |---|---|---|
 | R1 | Konuşurken A'da Ayarlar'dan Wi‑Fi'yi 10 s kapatıp açın | ~3 sn sonra *Yeniden bağlanıyor…* + koptu tonu, Wi‑Fi gelince birkaç saniyede (çoğunlukla el sıkışmasız) bağlanır + yeniden bağlandı tonu, elle işlem yok |
-| R2 | Birbirinden duyulmayacak kadar uzaklaşın, sonra geri dönün | ≤15 sn'lik kesintiler kopuş sayılmaz (günlükte `stalled`, sonra `resumed without a new handshake`); daha uzunsa deneme sayısı artar, geri dönünce kendiliğinden bağlanır. Mesafeyi ve toparlanma süresini not edin |
+| R2 | Birbirinden duyulmayacak kadar uzaklaşın, sonra geri dönün | ≤30 sn'lik kesintiler kopuş sayılmaz (günlükte `stalled`, sonra `resumed without a new handshake`); daha uzunsa deneme sayısı artar, geri dönünce kendiliğinden bağlanır. Mesafeyi ve toparlanma süresini not edin |
 | R3 | B'de uygulamayı kaydırarak kapatıp yeniden açın | A'da kopuş birkaç saniye içinde görülür; B açılınca kendiliğinden bağlanır |
 | R4 | B'de **Durdur**, sonra **Başlat** | A yeniden bağlanmayı dener, B başlayınca bağlanır |
 | R5 | A'da **Bağlantıyı kes** | İki taraf da kendiliğinden aramaz, bildirim yok; A'da **Bağlan** ile bağlanır |
@@ -780,8 +780,8 @@ free Apple IDs. It keeps working with the screen locked and shows a Live Activit
   drop (0 / 0.25 / 0.5 / 1 / 2 s backoff with jitter), showing the attempt number and elapsed time.
 - Rides through short outages: peer‑to‑peer Wi‑Fi at the edge of its range goes quiet for seconds and comes
   back, so a link that is silent for 2 s (3 s in the background) is only *stalled*: its flow and keys are
-  kept for 15 s while a replacement is dialled, and the first valid datagram from the peer resumes it with
-  no handshake. Only after 15 s is the link given up. The "lost" cue and notification wait for a stall of
+  kept for 30 s while a replacement is dialled, and the first valid datagram from the peer resumes it with
+  no handshake. Only after 30 s is the link given up. The "lost" cue and notification wait for a stall of
   2.5 s, so short outages are silent.
 - **Link journal** (Settings ▸ Diagnostics): an on‑device event log (newest 8000 events, kept across
   restarts) of stalls and their reasons, reconnects, paths, app and audio state, battery / Low Power /
@@ -853,7 +853,7 @@ free Apple IDs. It keeps working with the screen locked and shows a Live Activit
 - **Network (default):** `NWListener` + `NWBrowser` on Bonjour `_intercom-nw._udp`, one UDP flow per
   peer with peer‑to‑peer Wi‑Fi (AWDL) included, `.interactiveVoice`, cellular prohibited. Handshake,
   heartbeats (200 ms foreground / 250 ms background; a link silent for 2 s / 3 s is *stalled*: its flow and
-  keys are kept for 15 s while a replacement is dialled, and it resumes without a handshake if the peer
+  keys are kept for 30 s while a replacement is dialled, and it resumes without a handshake if the peer
   is heard again), duplicate‑flow arbitration,
   backoff, path migration and a fallback around client‑isolated Wi‑Fi all live in the unit‑tested Core
   `LinkStateMachine`. Traffic is sealed with per‑link, per‑direction ChaChaPoly keys.

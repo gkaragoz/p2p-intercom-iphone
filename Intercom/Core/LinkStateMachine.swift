@@ -58,8 +58,10 @@ struct LinkStateMachine {
         var unboundFlowTimeout: TimeInterval = 4
         /// How long an established link that the liveness monitor judged dead is kept dormant before it
         /// is torn down. Meanwhile its flow and keys stay, a replacement is dialled, and the first valid
-        /// datagram from the peer revives it without a handshake (see `LinkState.stalled`).
-        var stalledGrace: TimeInterval = 15
+        /// datagram from the peer revives it without a handshake (see `LinkState.stalled`). Field logs
+        /// of peer-to-peer Wi-Fi with one phone locked showed silences of up to 25 s that ended on
+        /// their own, and the user sees the same "reconnecting" status for the whole stall either way.
+        var stalledGrace: TimeInterval = 30
         /// How long a fresh stall waits for the old flow to come back before a replacement is dialled
         /// (and before discovery starts): most stalls end on their own, and a dial or a browse is
         /// traffic on a link that is struggling.

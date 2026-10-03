@@ -229,6 +229,27 @@ final class LinkStateMachineTests: XCTestCase {
         XCTAssertEqual(disconnects(low, peer: high.id).count, 1, "one outage, one disconnect")
     }
 
+    /// Field log of 2026-10-03: peer-to-peer Wi-Fi with one phone locked went silent for up to 25 s
+    /// (both phones in the background) and then came back by itself.
+    func testSilenceAsLongAsTheLongestOneSeenInTheFieldIsRiddenThrough() {
+        connectPair()
+        low.handle(.setAppActive(false))
+        high.handle(.setAppActive(false))
+        net.run(for: 2)
+        net.isPartitioned = true
+        net.run(for: 25)
+        net.isPartitioned = false
+        net.run(for: 12, until: { self.bothConnected })
+        XCTAssertTrue(bothConnected)
+        net.run(for: 2)
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty, "25 s of silence is inside the grace period")
+        XCTAssertTrue(disconnects(high, peer: low.id).isEmpty)
+        XCTAssertTrue(low.linkEvents(for: high.id).contains(.stalled))
+        assertPrimariesPaired()
+        XCTAssertEqual(low.machine.links.count, 1)
+        XCTAssertEqual(high.machine.links.count, 1)
+    }
+
     func testOldFlowThatStaysDeadIsReplacedByTheRecoveryDialWithoutDisconnect() {
         connectPair()
         net.run(for: 1)
@@ -738,7 +759,7 @@ final class LinkStateMachineTests: XCTestCase {
 
         // The controller forgets the peer's status on disconnect, so an unchanged value must be re-sent.
         net.isPartitioned = true
-        net.run(for: 30, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
+        net.run(for: 60, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
         net.isPartitioned = false
         net.run(for: 6, until: { self.bothConnected })
         XCTAssertTrue(bothConnected)
@@ -754,7 +775,7 @@ final class LinkStateMachineTests: XCTestCase {
         // The lower side's direction fades first, so the higher side's last pings are never echoed;
         // then the phones are apart for two minutes.
         net.dropFilter = { from, _ in from === self.low }
-        net.run(for: 30, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
+        net.run(for: 60, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
         XCTAssertFalse(disconnects(high, peer: low.id).isEmpty)
         net.dropFilter = nil
         net.isPartitioned = true
