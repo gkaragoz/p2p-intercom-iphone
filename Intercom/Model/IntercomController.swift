@@ -183,6 +183,7 @@ final class IntercomController: ObservableObject {
     /// What `transport` was started with; `nil` while there is none.
     private var activeTransportConfiguration: TransportConfiguration?
     private var wifiMonitor: WiFiAvailabilityMonitor?
+    private let deviceConditions = DeviceConditionsMonitor()
     private var sessionStatus = SessionStatusMachine()
     private var outputSmoother = LevelSmoother()
     private var remoteTalkFlag = false
@@ -197,8 +198,14 @@ final class IntercomController: ObservableObject {
     /// Bumped whenever the background give-up check for a recovering engine is rescheduled or moot.
     private var audioBudgetGeneration = 0
     private var stateTicks = 0
+    /// Consecutive state ticks with a link in trouble.
+    private var troubleTicks = 0
+    /// Health lines go to the journal every second for this many seconds of trouble, then every 5 s.
+    private static let troubleHealthSeconds = 30
     private static let log = Logger(subsystem: "intercom", category: "controller")
     private static let healthLog = Logger(subsystem: "intercom", category: "health")
+    /// The on-device event journal (see `LinkJournal`): the story of every link, readable without a Mac.
+    private let linkJournal = LinkJournal.shared
     /// A health line is logged every this many state ticks (seconds).
     private static let healthLogInterval = 5
     private static let audioWindow = "audio.interruption"
@@ -305,6 +312,7 @@ final class IntercomController: ObservableObject {
         }
 
         Self.log.notice("starting intercom")
+        linkJournal.record("app", "starting intercom")
         phase = .requestingPermission
         let granted = await MicrophonePermission.request()
         guard granted else {
@@ -331,6 +339,7 @@ final class IntercomController: ObservableObject {
             phase = .searching
             updateSessionStatus(.started(appActive: isAppActive))
             startWiFiMonitor()
+            deviceConditions.start()
             startTransport()
             startStateTimer()
             if isAppActive {
@@ -344,6 +353,7 @@ final class IntercomController: ObservableObject {
                 }
             }
             Self.log.notice("intercom running")
+            linkJournal.record("app", "intercom running")
         } catch {
             Self.log.error("intercom start failed: \(error.localizedDescription, privacy: .public)")
             lastError = error.localizedDescription
@@ -365,6 +375,7 @@ final class IntercomController: ObservableObject {
             break
         }
         Self.log.notice("stopping intercom")
+        linkJournal.record("app", "stopping intercom")
         tearDown()
         lastError = nil
         phase = .idle
@@ -373,11 +384,13 @@ final class IntercomController: ObservableObject {
     /// Manually connects to a discovered peer (auto-connect normally does this).
     func connect(to peer: PeerInfo) {
         Self.log.notice("connect to \(peer.id.rawValue, privacy: .public) requested")
+        linkJournal.record("app", "connect to \(peer.id.rawValue) requested")
         transport?.connect(to: peer.id)
     }
 
     func disconnect() {
         Self.log.notice("disconnect requested")
+        linkJournal.record("app", "disconnect requested")
         setTalkLatched(false, reason: "disconnect")
         transport?.disconnectAll()
     }
@@ -624,6 +637,7 @@ final class IntercomController: ObservableObject {
     /// Center, an alert): audio that is down is retried at once either way.
     func sceneDidBecomeActive() {
         Self.log.notice("scene phase: active")
+        linkJournal.record("app", "scene phase: active")
         let wasCovered = isCoveredWhileActive
         isCoveredWhileActive = false
         enterForeground()
@@ -640,6 +654,7 @@ final class IntercomController: ObservableObject {
     /// released by the finger; the latch is separate and stays.
     func sceneDidBecomeInactive() {
         Self.log.notice("scene phase: inactive (from \(self.isAppActive ? "foreground" : "background", privacy: .public))")
+        linkJournal.record("app", "scene phase: inactive (from \(isAppActive ? "foreground" : "background"))")
         releaseTalkButton()
         if isAppActive {
             isCoveredWhileActive = true
@@ -655,6 +670,7 @@ final class IntercomController: ObservableObject {
     /// audio failures that only the foreground can fix stop being retried.
     func sceneDidEnterBackground() {
         Self.log.notice("scene phase: background")
+        linkJournal.record("app", "scene phase: background")
         isCoveredWhileActive = false
         releaseTalkButton()
         engine.setAppActive(false)
@@ -747,6 +763,7 @@ final class IntercomController: ObservableObject {
             // Straight to the engine: the sidetone must fall silent the moment the headset is
             // unplugged, not after a hop to the main actor.
             engine.updateSidetoneRoute(route)
+            LinkJournal.shared.record("audio", "route: output \(route.outputPortType.rawValue), input \(route.inputName.isEmpty ? "none" : "present")")
             Task { @MainActor in self?.route = route }
         }
     }
@@ -934,6 +951,7 @@ final class IntercomController: ObservableObject {
     /// A force-quit or jetsam kill gets no such chance (the next launch clears the notices).
     private func applicationWillTerminate() {
         Self.log.notice("app will terminate (running \(self.isRunning, privacy: .public))")
+        linkJournal.record("app", "app will terminate (running \(isRunning))")
         notifier.removeAll()
         guard isRunning, let transport else { return }
         transport.stop()
@@ -998,6 +1016,7 @@ final class IntercomController: ObservableObject {
         pipeline.setTransport(transport)
         self.transport = transport
         Self.log.notice("starting \(kind.rawValue, privacy: .public) transport")
+        linkJournal.record("app", "starting \(kind.rawValue) transport")
         transport.start()
     }
 
@@ -1106,11 +1125,15 @@ final class IntercomController: ObservableObject {
             peers[index].path = path
             peers[index].hasBeenConnected = true
             peers[index].lastDisconnectReason = nil
-            if !wasConnected {
+            // A stalled link keeps the peer "connected" here, so a restarted peer (a new instance, not a
+            // resumption) that takes it over must still be introduced.
+            if !wasConnected || !isResumption {
                 peerDidConnect(peerID, isResumption: isResumption)
             }
             reconcileWireRate(reason: "peer connected")
-        case .suspect:
+        case .suspect, .stalled:
+            // A stalled link is kept and replaced or revived by the transport; to the peer list it is
+            // a very weak connection. The session status says when it is announced as lost.
             peers[index].isSuspect = true
         case .disconnected(let reason):
             peers[index].state = .discovered
@@ -1257,6 +1280,7 @@ final class IntercomController: ObservableObject {
             case .playCue(let cue):
                 guard settings.audioCuesEnabled else { break }
                 Self.log.notice("cue \(String(describing: cue), privacy: .public)")
+                linkJournal.record("state", "cue \(String(describing: cue))")
                 playCue(cue)
             case .postNotice(let notice):
                 if notice.slot == .audio, audioState == .interrupted || audioState == .needsForeground {
@@ -1270,6 +1294,7 @@ final class IntercomController: ObservableObject {
                 notifier.remove(slot)
             case .log(let message):
                 Self.log.notice("\(message, privacy: .public)")
+                linkJournal.record("state", message)
             }
         }
         publishSessionStatus()
@@ -1278,6 +1303,7 @@ final class IntercomController: ObservableObject {
     private func publishSessionStatus() {
         if linkState != sessionStatus.status {
             Self.log.notice("link state \(self.linkState.description, privacy: .public) -> \(self.sessionStatus.status.description, privacy: .public)")
+            linkJournal.record("state", "session \(linkState.description) -> \(sessionStatus.status.description)")
             linkState = sessionStatus.status
         }
         if lastPeerName != sessionStatus.lastPeerName {
@@ -1288,6 +1314,7 @@ final class IntercomController: ObservableObject {
         }
         if warning != sessionStatus.warning {
             Self.log.notice("warning: \(self.sessionStatus.warning.map { String(describing: $0) } ?? "none", privacy: .public)")
+            linkJournal.record("state", "warning: \(sessionStatus.warning.map { String(describing: $0) } ?? "none")")
             warning = sessionStatus.warning
         }
     }
@@ -1361,6 +1388,7 @@ final class IntercomController: ObservableObject {
         guard audioState != state else { return }
         let previous = audioState
         Self.log.notice("audio state \(previous.description, privacy: .public) -> \(state.description, privacy: .public) (app active \(self.isAppActive, privacy: .public))")
+        linkJournal.record("audio", "audio state \(previous.description) -> \(state.description) (app active \(isAppActive))")
         audioState = state
         if state != .running {
             // No capture to record, no output to play back.
@@ -1420,6 +1448,7 @@ final class IntercomController: ObservableObject {
     private func backgroundRecoveryBudgetDue(_ generation: Int) {
         guard generation == audioBudgetGeneration, isRunning, !isAppActive, case .recovering = audioState else { return }
         Self.log.notice("background time nearly used up (\(String(format: "%.1f", UIApplication.shared.backgroundTimeRemaining), privacy: .public) s left) while audio is \(self.audioState.description, privacy: .public)")
+        linkJournal.record("app", "background time nearly used up (\(String(format: "%.1f", UIApplication.shared.backgroundTimeRemaining)) s left) while audio is \(audioState.description)")
         // A no-op if the engine got audio back meanwhile (the state seen here lags its queue).
         engine.backgroundTimeExhausted()
     }
@@ -1479,8 +1508,21 @@ final class IntercomController: ObservableObject {
         }
         updateSessionStatus(.tick)
         if stateTicks % Self.healthLogInterval == 0 {
-            logHealth()
+            logHealth(toSystemLog: true)
+        } else if isLinkInTrouble, troubleTicks <= Self.troubleHealthSeconds {
+            // One journal line a second while a link is weak or being replaced: that is when the
+            // seconds matter. The system log keeps its calmer rhythm.
+            logHealth(toSystemLog: false)
         }
+        // A peer that stays out of range for hours must not push the story of the ride out of the journal.
+        troubleTicks = isLinkInTrouble ? troubleTicks + 1 : 0
+    }
+
+    /// A link is weak, stalled or being redialled.
+    private var isLinkInTrouble: Bool {
+        if peers.contains(where: { $0.isSuspect }) { return true }
+        if case .reconnecting = linkState { return true }
+        return false
     }
 
     private func tickMeters() {
@@ -1524,7 +1566,7 @@ final class IntercomController: ObservableObject {
     }
 
     /// One line every few seconds that tells the whole story at a glance in the device log.
-    private func logHealth() {
+    private func logHealth(toSystemLog: Bool) {
         let appState: String
         switch UIApplication.shared.applicationState {
         case .active: appState = "active"
@@ -1544,7 +1586,18 @@ final class IntercomController: ObservableObject {
             + " trimmed=\(stats.trimmed) lockMisses=\(stats.renderLockMisses)"
             + " wire=\(effectiveWireRate.sampleRate) in=\(incomingSampleRate.map(String.init) ?? "-")"
             + " warning=\(warning.map { String(describing: $0) } ?? "none")"
-        Self.healthLog.notice("\(line, privacy: .public) peers=[\(peerSummary, privacy: .private)]")
+            + " \(DeviceConditionsMonitor.summary())"
+        if toSystemLog {
+            Self.healthLog.notice("\(line, privacy: .public) peers=[\(peerSummary, privacy: .private)]")
+        }
+        // The journal stays on the phone and is shared only by the user, so it keeps the peer states too.
+        linkJournal.record("health", "\(line) peers=[\(peerSummary)]")
+    }
+
+    /// Puts a marker in the link journal, so a drop noticed on the road can be found afterwards.
+    func markJournal() {
+        linkJournal.record("marker", "user marker (link \(linkState.description), app \(isAppActive ? "active" : "background"))")
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     // MARK: - Private: teardown
@@ -1555,6 +1608,7 @@ final class IntercomController: ObservableObject {
         cancelTestLoopback()
         wifiMonitor?.stop()
         wifiMonitor = nil
+        deviceConditions.stop()
         setTalkLatched(false, reason: "stop")
         stopTransport()
         releaseTalkButton()

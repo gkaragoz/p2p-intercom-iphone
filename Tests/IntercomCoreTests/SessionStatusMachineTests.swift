@@ -382,6 +382,120 @@ final class SessionStatusMachineTests: XCTestCase {
         XCTAssertEqual(cues(connected), [.connected], "a new run starts a new episode")
     }
 
+    // MARK: - Stalled links
+
+    private func connect(_ harness: inout Harness) -> Date {
+        let up = harness.date
+        harness.send(.linkStateChanged(peer, .connected(path: .peerToPeerWiFi, isResumption: false)))
+        return up
+    }
+
+    func testShortStallIsInvisible() {
+        var harness = makeRunning()
+        let up = connect(&harness)
+        let stalled = harness.send(.linkStateChanged(peer, .stalled))
+        XCTAssertTrue(cues(stalled).isEmpty)
+        harness.advance(2) // under the 2.5 s announce delay
+        XCTAssertEqual(harness.machine.status, .connected(since: up, path: .peerToPeerWiFi),
+                       "a stalled link is still the connection")
+        let back = harness.send(.linkStateChanged(peer, .connected(path: .peerToPeerWiFi, isResumption: true)))
+        XCTAssertTrue(cues(back).isEmpty, "nobody was told the link was lost, so nobody is told it is back")
+        XCTAssertEqual(harness.machine.status, .connected(since: up, path: .peerToPeerWiFi))
+        XCTAssertTrue(cues(harness.advance(5)).isEmpty, "the cancelled announcement does not fire later")
+    }
+
+    func testLongStallIsAnnouncedAsLostAndThenAsReconnected() {
+        var harness = makeRunning()
+        let up = connect(&harness)
+        let stallDate = harness.date
+        harness.send(.linkStateChanged(peer, .stalled))
+        XCTAssertTrue(cues(harness.advance(2)).isEmpty)
+        XCTAssertEqual(cues(harness.advance(1)), [.lost], "announced once the stall has lasted 2.5 s")
+        XCTAssertEqual(harness.machine.status, .reconnecting(since: stallDate, attempt: 0),
+                       "shown as reconnecting although the stalled link is still held")
+        XCTAssertTrue(cues(harness.advance(5)).isEmpty, "announced only once")
+
+        let back = harness.send(.linkStateChanged(peer, .connected(path: .peerToPeerWiFi, isResumption: true)))
+        XCTAssertEqual(cues(back), [.reconnected])
+        XCTAssertEqual(harness.machine.status, .connected(since: up, path: .peerToPeerWiFi),
+                       "the connection never ended, so its clock keeps running")
+    }
+
+    func testAnnouncedStallThatIsGivenUpStaysOneLossEpisode() {
+        var harness = makeRunning()
+        _ = connect(&harness)
+        harness.send(.linkStateChanged(peer, .stalled))
+        XCTAssertEqual(cues(harness.advance(3)), [.lost])
+        let given = harness.send(.linkStateChanged(peer, .disconnected(.timeout)))
+        XCTAssertTrue(cues(given).isEmpty, "the loss was already announced")
+        if case .reconnecting = harness.machine.status {} else { XCTFail("still reconnecting: \(harness.machine.status)") }
+        let back = harness.send(.linkStateChanged(peer, .connected(path: .peerToPeerWiFi, isResumption: true)))
+        XCTAssertEqual(cues(back), [.reconnected])
+    }
+
+    func testStallThatDiesBeforeTheAnnounceDelayStillSaysLost() {
+        var harness = makeRunning()
+        _ = connect(&harness)
+        harness.send(.linkStateChanged(peer, .stalled))
+        let given = harness.send(.linkStateChanged(peer, .disconnected(.transportError("failed"))))
+        XCTAssertEqual(cues(given), [.lost], "a link that ends before the announcement is announced when it ends")
+    }
+
+    func testStallInTheBackgroundPostsTheLostNoticeAfterTheGraceAndReplacesItWhenBack() {
+        var harness = makeRunning(appActive: false)
+        _ = connect(&harness)
+        harness.send(.linkStateChanged(peer, .stalled))
+        XCTAssertTrue(notices(harness.advance(3)).isEmpty, "the announcement itself comes first")
+        XCTAssertEqual(notices(harness.advance(3)), [.connectionLost(peerName: "Zeynep")])
+        let back = harness.send(.linkStateChanged(peer, .connected(path: .peerToPeerWiFi, isResumption: true)))
+        XCTAssertEqual(notices(back), [.reconnected(peerName: "Zeynep")])
+    }
+
+    func testDeliberateEndingWhileAnnouncedStallClearsTheEpisode() {
+        var harness = makeRunning(appActive: false)
+        _ = connect(&harness)
+        harness.send(.linkStateChanged(peer, .stalled))
+        harness.advance(7) // announced, and the lost notice is up
+        let ended = harness.send(.linkStateChanged(peer, .disconnected(.userRequested)))
+        XCTAssertEqual(removals(ended), [.link], "the lost notice goes away with the episode")
+        XCTAssertEqual(harness.machine.status, .disconnected(byPeer: false))
+    }
+
+    func testHintSaysOutOfRangeAfterAnUnexpectedLossAndWifiOffOtherwise() {
+        var harness = makeRunning()
+        harness.send(.wifiAvailabilityChanged(false)) // unjoined Wi-Fi reads as unavailable
+        _ = connect(&harness)
+        XCTAssertNil(harness.machine.warning, "a link proves the radio works")
+        harness.send(.linkStateChanged(peer, .disconnected(.timeout)))
+        harness.advance(5)
+        XCTAssertEqual(harness.machine.warning, .outOfRange, "the likelier cause after a loss is distance")
+        harness.send(.linkStateChanged(peer, .connected(path: .peerToPeerWiFi, isResumption: true)))
+        XCTAssertNil(harness.machine.warning)
+        harness.send(.linkStateChanged(peer, .disconnected(.userRequested)))
+        harness.advance(5)
+        XCTAssertEqual(harness.machine.warning, .wifiOff, "a deliberate disconnect is not a range problem")
+    }
+
+    func testAnnouncedLossEndsWhenAnotherPeersLinkIsHealthyAgain() {
+        var harness = makeRunning()
+        harness.send(.peerNamed(other, "Ahmet"))
+        _ = connect(&harness)
+        harness.send(.linkStateChanged(other, .connected(path: .peerToPeerWiFi, isResumption: false)))
+        harness.send(.linkStateChanged(peer, .stalled))
+        harness.send(.linkStateChanged(other, .stalled))
+        XCTAssertEqual(cues(harness.advance(3)), [.lost])
+        let back = harness.send(.linkStateChanged(other, .connected(path: .peerToPeerWiFi, isResumption: true)))
+        XCTAssertEqual(cues(back), [.reconnected], "the connection is back through the other peer")
+        if case .connected = harness.machine.status {} else { XCTFail("connected again: \(harness.machine.status)") }
+
+        // The first peer is given up while the other is fine: no new episode is opened for it.
+        let given = harness.send(.linkStateChanged(peer, .disconnected(.timeout)))
+        XCTAssertTrue(cues(given).isEmpty)
+        // A later stall of the other one is announced again, not swallowed by a stale episode.
+        harness.send(.linkStateChanged(other, .stalled))
+        XCTAssertEqual(cues(harness.advance(3)), [.lost])
+    }
+
     func testRenameOfLastPeerUpdatesName() {
         var harness = makeRunning()
         harness.send(.linkStateChanged(peer, .connected(path: .wifiNetwork, isResumption: false)))

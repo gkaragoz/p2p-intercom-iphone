@@ -130,6 +130,11 @@ extension LinkStateMachine {
         var ack: NetHelloAck?
         var liveness: LivenessMonitor
         var isViable = true
+        /// When the liveness monitor first judged this established link dead; `nil` while it is
+        /// heard. The link is then *stalled*: kept (flow, keys, audio route) for
+        /// `Configuration.stalledGrace` while a replacement is dialled, and revived at once by the
+        /// first valid datagram from the peer.
+        var stalledSince: MonotonicTime?
         /// Close the current primary as soon as this link is up, even if the tie-break favours it.
         var supersedesPrimary = false
         /// Opened by `flowBetterPathAvailable` while another link is up; failure is not a reconnect.
@@ -139,6 +144,12 @@ extension LinkStateMachine {
         var isEstablished: Bool {
             if case .established = phase { return true }
             return false
+        }
+
+        /// When the handshake completed, for an established link.
+        var establishedSince: MonotonicTime? {
+            if case .established(let since) = phase { return since }
+            return nil
         }
 
         var isHandshaking: Bool { !isEstablished }
@@ -167,6 +178,23 @@ extension LinkStateMachine {
     func hasHealthyPrimary(_ peer: PeerRecord, now: MonotonicTime) -> Bool {
         guard let flow = peer.primary, let link = links[flow], link.isEstablished else { return false }
         return health(of: link, now: now) == .alive
+    }
+
+    /// The peer's primary link is established and not judged dead: alive, or merely weak. This is what
+    /// discovery needs to know; a weak link is still carrying audio and a browse would only hurt it.
+    func hasUsablePrimary(_ peer: PeerRecord, now: MonotonicTime) -> Bool {
+        guard let flow = peer.primary, let link = links[flow], link.isEstablished else { return false }
+        if let since = link.stalledSince {
+            // A fresh stall is still given the chance to end on its own before discovery starts.
+            return now - since < configuration.recoveryDialDelay
+        }
+        return health(of: link, now: now) != .dead
+    }
+
+    /// The peer's primary link is established but stalled (dormant, being replaced or revived).
+    func isPrimaryStalled(_ peer: PeerID) -> Bool {
+        guard let flow = peers[peer]?.primary, let link = links[flow] else { return false }
+        return link.isEstablished && link.stalledSince != nil
     }
 
     func hasHealthyLink(toPeerOtherThan excluded: PeerID, now: MonotonicTime) -> Bool {

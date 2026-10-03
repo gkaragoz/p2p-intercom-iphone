@@ -163,6 +163,10 @@ enum LinkState: Equatable, Sendable {
     case connected(path: LinkPath, isResumption: Bool)
     /// Nothing received for a while; audio may be interrupted but the link is not given up yet.
     case suspect
+    /// Silent for so long that the link is as good as lost, but its flow and keys are kept while a
+    /// replacement is dialled: a short outage ends with `.connected(isResumption: true)` and no
+    /// handshake, a long one with `.disconnected(.timeout)`. Counts as up (the peer is not gone yet).
+    case stalled
     case disconnected(DisconnectReason)
 }
 

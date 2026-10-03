@@ -50,6 +50,11 @@ enum SessionWarning: Equatable, Sendable {
     /// joined to a network (the path monitor cannot tell those apart), so the copy states the
     /// requirement ("Wi-Fi must be on, no network needed") instead of claiming Wi-Fi is off.
     case wifiOff
+    /// The same condition while a link lost without anyone asking for it is being redialled (a loss
+    /// episode is open). Then the likelier cause is distance (peer-to-peer Wi-Fi reaches only a few
+    /// metres), so the copy says that first and still states the Wi-Fi requirement; it also covers
+    /// Wi-Fi switched off mid-run, which the path monitor cannot tell from an unjoined Wi-Fi.
+    case outOfRange
 }
 
 /// A local notification the controller shows while the app is not active.
@@ -95,6 +100,9 @@ struct SessionStatusMachine {
         var audioPausedNoticeGrace: TimeInterval = 5
         /// How long "no Wi-Fi and no link" must last before the hint shows (avoids a flash at start).
         var wifiHintDelay: TimeInterval = 5
+        /// How long a link must stay stalled before it is announced like a lost one (tone, status
+        /// "reconnecting", notification clock). A stall that ends sooner passes without a sound.
+        var stallAnnounceDelay: TimeInterval = 2.5
 
         static let `default` = Configuration()
     }
@@ -142,6 +150,9 @@ struct SessionStatusMachine {
         var path: LinkPath = .unknown
         /// Orders links by when they came up; the oldest one is the primary for path display.
         var linkOrder: UInt64 = 0
+        /// When the link became stalled (monotonic, for the announce delay; wall clock, for the UI).
+        var stalledAt: MonotonicTime?
+        var stalledSince: Date?
     }
 
     private struct LossEpisode {
@@ -249,6 +260,7 @@ struct SessionStatusMachine {
         case .tick:
             break
         }
+        effects += announceStall(now: now, date: date)
         effects += dueNotices(now: now)
         recompute(now: now, date: date)
         return effects
@@ -261,7 +273,12 @@ struct SessionStatusMachine {
         let wasLinked = hasLink
         var peer = peers[id] ?? Peer()
         let peerWasLinked = Self.isUp(peer.state)
+        let peerWasStalled = peer.state == .stalled
         peer.state = state
+        if state != .stalled {
+            peer.stalledAt = nil
+            peer.stalledSince = nil
+        }
 
         switch state {
         case .connected(let path, _):
@@ -271,6 +288,12 @@ struct SessionStatusMachine {
                 peer.linkOrder = linkCounter
             }
             peers[id] = peer
+            if peerWasStalled {
+                // The stalled link is heard again, or a replacement took over: the connection never
+                // ended. Only a stall that was announced as lost is announced as recovered.
+                effects += endAnnouncedStall(now: now)
+                break
+            }
             guard !wasLinked else { break }
             connectedSince = date
             lastPeerID = id
@@ -291,7 +314,21 @@ struct SessionStatusMachine {
                 effects.append(.playCue(.connected))
             }
 
-        case .suspect, .discovered:
+        case .suspect:
+            peers[id] = peer
+            if peerWasStalled {
+                // Heard again, though not healthy yet: the stall is over.
+                effects += endAnnouncedStall(now: now)
+            }
+
+        case .stalled:
+            if !peerWasStalled {
+                peer.stalledAt = now
+                peer.stalledSince = date
+            }
+            peers[id] = peer
+
+        case .discovered:
             peers[id] = peer
 
         case .connecting(let attempt):
@@ -324,16 +361,23 @@ struct SessionStatusMachine {
             connectedSince = nil
             switch reason {
             case .userRequested, .stopped:
+                effects += endLossEpisode(of: id)
                 effects.append(.log("link to \(id) ended on request"))
             case .remoteBye(.userDisconnect), .remoteBye(.authenticationFailed), .remoteBye(.incompatibleVersion):
                 // The other side ended it and nothing reconnects automatically: say so, but there
                 // is no "reconnecting" to announce.
+                effects += endLossEpisode(of: id)
                 effects += [.playCue(.lost), .log("link to \(id) ended by the peer (\(reason))")]
             case .timeout, .transportError, .remoteBye:
-                // A loss that starts while the app is active is on screen; going to the background
-                // later must not announce it as news.
-                loss = LossEpisode(peer: id, since: date, startedAt: now, isSeen: isAppActive)
-                effects += [.playCue(.lost), .log("link to \(id) lost (\(reason)); reconnecting")]
+                if loss != nil {
+                    // A stall was already announced as a loss: this is the same loss, now final.
+                    effects.append(.log("link to \(id) given up after a stall (\(reason)); still reconnecting"))
+                } else {
+                    // A loss that starts while the app is active is on screen; going to the background
+                    // later must not announce it as news.
+                    loss = LossEpisode(peer: id, since: date, startedAt: now, isSeen: isAppActive)
+                    effects += [.playCue(.lost), .log("link to \(id) lost (\(reason)); reconnecting")]
+                }
             }
         }
         return effects
@@ -341,6 +385,40 @@ struct SessionStatusMachine {
 
     private var hasLink: Bool {
         peers.values.contains { Self.isUp($0.state) }
+    }
+
+    /// A stall that has lasted `stallAnnounceDelay` is announced like a lost link (tone, status
+    /// "reconnecting", notification clock), unless another peer's link is still fine. A shorter one
+    /// passes without a sound: the transport usually revives or replaces the link by then.
+    private mutating func announceStall(now: MonotonicTime, date: Date) -> [Effect] {
+        guard isRunning, loss == nil else { return [] }
+        let stalled = peers.filter { $0.value.state == .stalled && $0.value.stalledAt != nil }
+        guard !stalled.isEmpty,
+              !peers.values.contains(where: { Self.isUp($0.state) && $0.state != .stalled }),
+              let oldest = stalled.min(by: { ($0.value.stalledAt ?? now) < ($1.value.stalledAt ?? now) }),
+              let at = oldest.value.stalledAt, now - at >= configuration.stallAnnounceDelay else { return [] }
+        loss = LossEpisode(peer: oldest.key, since: oldest.value.stalledSince ?? date, startedAt: now, isSeen: isAppActive)
+        return [.playCue(.lost), .log("link to \(oldest.key) stalled for " + String(format: "%.1f", now - at) + " s; reconnecting")]
+    }
+
+    /// A link of a stall is heard again. Only a loss that was announced is announced as over, and it is
+    /// over whichever peer's link came back: the user is connected again.
+    private mutating func endAnnouncedStall(now: MonotonicTime) -> [Effect] {
+        guard let episode = loss else { return [] }
+        loss = nil
+        var effects: [Effect] = [.playCue(.reconnected),
+                                 .log(String(format: "link back after %.1f s", now - episode.startedAt))]
+        if episode.isNoticePosted {
+            effects.append(.postNotice(.reconnected(peerName: lastPeerName)))
+        }
+        return effects
+    }
+
+    /// Drops the loss episode of a peer whose link ended on purpose (and its notification).
+    private mutating func endLossEpisode(of id: PeerID) -> [Effect] {
+        guard let episode = loss, episode.peer == id else { return [] }
+        loss = nil
+        return episode.isNoticePosted ? [.removeNotice(.link)] : []
     }
 
     /// Endings after which the transport does not redial on its own.
@@ -356,7 +434,7 @@ struct SessionStatusMachine {
 
     private static func isUp(_ state: LinkState) -> Bool {
         switch state {
-        case .connected, .suspect: return true
+        case .connected, .suspect, .stalled: return true
         case .discovered, .connecting, .disconnected: return false
         }
     }
@@ -398,9 +476,8 @@ struct SessionStatusMachine {
     }
 
     private mutating func recompute(now: MonotonicTime, date: Date) {
-        let primary = peers.values
-            .filter { Self.isUp($0.state) }
-            .min { $0.linkOrder < $1.linkOrder }
+        let upPeers = peers.values.filter { Self.isUp($0.state) }
+        let primary = upPeers.min { $0.linkOrder < $1.linkOrder }
         linkPath = primary?.path
         if primary != nil, connectedSince == nil {
             connectedSince = date
@@ -415,7 +492,9 @@ struct SessionStatusMachine {
         if let transportWarning {
             warning = transportWarning
         } else if let since = wifiHintSince, now - since >= configuration.wifiHintDelay {
-            warning = .wifiOff
+            // A link that was lost unexpectedly (a loss episode is open) makes distance the likelier
+            // cause than a radio that is off.
+            warning = loss == nil ? .wifiOff : .outOfRange
         } else {
             warning = nil
         }
@@ -434,7 +513,9 @@ struct SessionStatusMachine {
         case .running, .stopped:
             break
         }
-        if let primary {
+        // A stall announced as lost shows as reconnecting although the stalled link still counts as up.
+        let isStalledOnly = !upPeers.isEmpty && upPeers.allSatisfy { $0.state == .stalled }
+        if let primary, !(isStalledOnly && loss != nil) {
             status = .connected(since: connectedSince ?? date, path: primary.path)
         } else if let loss {
             status = .reconnecting(since: loss.since, attempt: loss.attempt)
@@ -466,7 +547,7 @@ struct SessionStatusMachine {
                 disconnectedByPeer[id] = true
             case .discovered:
                 return nil
-            case .connecting, .connected, .suspect, .disconnected:
+            case .connecting, .connected, .suspect, .stalled, .disconnected:
                 break
             }
         }

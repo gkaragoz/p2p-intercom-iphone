@@ -216,7 +216,7 @@ struct StatusCard: View {
                 Text(warningText(warning))
                     .foregroundStyle(.primary)
             } icon: {
-                Image(systemName: warning == .wifiOff ? "wifi.exclamationmark" : "exclamationmark.triangle.fill")
+                Image(systemName: warningSymbol(warning))
                     .foregroundStyle(.orange)
             }
             .font(.footnote)
@@ -230,7 +230,7 @@ struct StatusCard: View {
                 Button("Check pairing code", action: showSettings)
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-            case .versionMismatch, .wifiOff:
+            case .versionMismatch, .wifiOff, .outOfRange:
                 EmptyView()
             }
         }
@@ -249,6 +249,16 @@ struct StatusCard: View {
             return "The other iPhone runs an incompatible version. Install the same build on both."
         case .wifiOff:
             return "Wi‑Fi must be on. No network or internet is needed."
+        case .outOfRange:
+            return "The other iPhone may be out of range. Move closer; Wi‑Fi must also be on."
+        }
+    }
+
+    private func warningSymbol(_ warning: SessionWarning) -> String {
+        switch warning {
+        case .wifiOff: return "wifi.exclamationmark"
+        case .outOfRange: return "antenna.radiowaves.left.and.right.slash"
+        case .localNetworkDenied, .pairingMismatch, .versionMismatch: return "exclamationmark.triangle.fill"
         }
     }
 

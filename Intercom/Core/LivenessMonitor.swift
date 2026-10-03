@@ -13,6 +13,12 @@ import Foundation
 /// * dead as well once sends have failed continuously for at least 300 ms (the interface is gone) —
 ///   or for as long as the suspect threshold while the peer is still being heard, so a short burst of
 ///   failed sends during peer-to-peer Wi-Fi congestion does not tear down a path that evidently works.
+///
+/// "Dead" is only the monitor's verdict on silence. What to do about it is policy: the Multipeer
+/// engine drops its session at once, while `LinkStateMachine` keeps the flow dormant for a grace
+/// period (the link is *stalled*), dials a replacement meanwhile and revives the old flow if the peer
+/// is heard again, because peer-to-peer Wi-Fi at the edge of its range goes quiet for seconds and then
+/// comes back.
 struct LivenessMonitor: Equatable, Sendable {
     enum Health: Int, Comparable, Sendable {
         case alive
@@ -26,7 +32,10 @@ struct LivenessMonitor: Equatable, Sendable {
 
     struct Configuration: Equatable, Sendable {
         var foregroundHeartbeatInterval: TimeInterval = 0.2
-        var backgroundHeartbeatInterval: TimeInterval = 0.5
+        /// Four heartbeats a second even with the screen locked: the thresholds count missed heartbeats,
+        /// so a slower cadence gives a marginal link fewer chances before it is judged (6 instead of 12
+        /// in the 3 s window), and a heartbeat is a 51-byte datagram.
+        var backgroundHeartbeatInterval: TimeInterval = 0.25
         var suspectMinimum: TimeInterval = 0.6
         var suspectIntervals: Double = 3
         var deadMinimum: TimeInterval = 2

@@ -46,13 +46,24 @@ struct LinkStateMachine {
         var autoConnect = true
         var dialHoldoff: TimeInterval = LinkArbiter.dialHoldoff
         var helloRetryInterval: TimeInterval = 0.25
-        /// A dialled flow that is not `.ready` within this time counts as a failed attempt.
-        var flowReadyTimeout: TimeInterval = 3
-        /// HELLO_ACK deadline after the flow became ready: first attempt, then later attempts.
-        var handshakeTimeouts: [TimeInterval] = [1, 2]
+        /// A dialled flow that is not `.ready` within this time counts as a failed attempt. Resolving
+        /// a Bonjour service over peer-to-peer Wi-Fi at the edge of its range takes seconds, and
+        /// cancelling the flow throws that progress away.
+        var flowReadyTimeout: TimeInterval = 8
+        /// HELLO_ACK deadline after the flow became ready: first attempt, then later attempts. HELLO
+        /// keeps being retransmitted throughout, so a longer window is more chances, not more airtime.
+        var handshakeTimeouts: [TimeInterval] = [3, 5]
         /// Listener side: time from HELLO_ACK to the dialer's first sealed datagram.
-        var listenerHandshakeTimeout: TimeInterval = 2
-        var unboundFlowTimeout: TimeInterval = 2
+        var listenerHandshakeTimeout: TimeInterval = 4
+        var unboundFlowTimeout: TimeInterval = 4
+        /// How long an established link that the liveness monitor judged dead is kept dormant before it
+        /// is torn down. Meanwhile its flow and keys stay, a replacement is dialled, and the first valid
+        /// datagram from the peer revives it without a handshake (see `LinkState.stalled`).
+        var stalledGrace: TimeInterval = 15
+        /// How long a fresh stall waits for the old flow to come back before a replacement is dialled
+        /// (and before discovery starts): most stalls end on their own, and a dial or a browse is
+        /// traffic on a link that is struggling.
+        var recoveryDialDelay: TimeInterval = 1
         var maxUnboundFlows = 8
         /// Losing duplicates are kept this long after `bye` so in-flight datagrams are not refused.
         var closingLinger: TimeInterval = 0.5
@@ -104,6 +115,10 @@ struct LinkStateMachine {
         case flowViabilityChanged(FlowID, isViable: Bool)
         case flowBetterPathAvailable(FlowID)
         case datagram(NetDatagram, on: FlowID)
+        /// An authenticated audio datagram arrived on this flow. Audio never goes through the machine
+        /// (it must reach the jitter buffer without a hop), so the glue reports it, a few times a
+        /// second at most, only as proof of life: a peer that is talking is not silent.
+        case audioHeard(FlowID)
         case undecodableDatagram(FlowID, NetDatagramError)
         case sendCompleted(FlowID, success: Bool)
         case sendControl(ControlMessage)
@@ -249,6 +264,11 @@ struct LinkStateMachine {
             betterPathAvailable(id, now: now)
         case .datagram(let datagram, let id):
             received(datagram, on: id, now: now)
+        case .audioHeard(let id):
+            if links[id]?.isEstablished == true {
+                links[id]?.liveness.recordReceive(at: now)
+                endStallIfHeard(id, now: now)
+            }
         case .undecodableDatagram(let id, let error):
             undecodable(error, on: id, now: now)
         case .sendCompleted(let id, let success):
@@ -353,11 +373,13 @@ struct LinkStateMachine {
     /// network may well have recovered.
     private mutating func resetBackoffAndRedial(now: MonotonicTime) {
         for id in Array(peers.keys) {
+            // A dial still resolving was resolving over the old path or app state: start afresh.
+            cancelOutboundDials(of: id, onlyNotReady: true, reason: "network or app state changed", now: now)
             guard var peer = peers[id] else { continue }
             peer.backoff.reset()
             peer.clearInterfaceAvoidance()
             peer.isParked = false
-            if peer.primary == nil, !hasHandshakingLink(id), canDial(peer) {
+            if peer.primary == nil || isPrimaryStalled(id), !hasHandshakingLink(id), canDial(peer) {
                 peer.nextDialAt = now + LinkArbiter.dialDelay(local: configuration.localID, remote: id,
                                                               holdoff: configuration.dialHoldoff)
             }
@@ -367,7 +389,7 @@ struct LinkStateMachine {
 
     static func isUp(_ state: LinkState) -> Bool {
         switch state {
-        case .connected, .suspect: return true
+        case .connected, .suspect, .stalled: return true
         default: return false
         }
     }

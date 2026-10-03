@@ -33,8 +33,11 @@ Canlı Etkinlik gösterir.
 
 - **Otomatik başlama ve eşleşme:** Uygulamayı iki telefonda açmanız yeterli. İnterkom kendiliğinden
   başlar, telefonlar birbirini bulur ve bağlanır.
-- **Kendiliğinden yeniden bağlanma:** Bağlantı koparsa uygulama vazgeçmeden yeniden dener (ilk
-  denemeler hemen, sonra en fazla 2 saniye arayla). Durum kartında deneme sayısı ve geçen süre görünür.
+- **Kısa kesintilere dayanıklı, kendiliğinden yeniden bağlanma:** Menzil sınırında Doğrudan Wi‑Fi
+  saniyelerce susup geri gelebilir. Uygulama bunu hemen kopuş saymaz: eski bağlantıyı 15 saniyeye kadar
+  korur, yanında yenisini dener ve eş duyulursa el sıkışmasız devam eder. Gerçekten koparsa vazgeçmeden
+  yeniden dener (ilk denemeler hemen, sonra en fazla 2 saniye arayla). Durum kartında deneme sayısı ve
+  geçen süre görünür.
 - **Üç konuşma modu:**
   - **Bas konuş (PTT):** Büyük düğmeyi basılı tuttuğunuz sürece ses gider.
   - **Ses algılama (VOX):** Konuşmaya başlayınca otomatik gönderir; eşik ayarlanabilir. Sesin başı
@@ -331,6 +334,7 @@ satırdaki **Bağlan** düğmesine dokunun.
 | | Dinleme EQ | Aynı ön ayarlar, yalnızca bu telefonda: karşı tarafın sesine gerçek zamanlı oynatma render'ında uygulanan biquad zinciri (Core, saf Swift, Linux'ta test edilir). Karşı taraf etkilenmez. |
 | | Test kaydı | **5 sn kaydet ve dinle:** mikrofon 5 saniye boyunca tam gönderildiği haliyle (ses kalitesi + efekt + mikrofon EQ) belleğe alınır, sonra yerel jitter tamponuna 20 ms'lik paketler olarak verilir ve normal oynatma yolundan (dinleme EQ dahil) dinletilir. PTT'yi basılı tutmak gerekmez; dinletme sırasında karşı tarafın sesi duraklatılır; diske yazılmaz. **Yeniden dinle** aynı kaydı tekrar çalar. |
 | Tanılama | | Bağlantı motoru, ses çıkışı, giriş biçimi, gelen ses (karşı telefonun gönderdiği hız; sizinkinden farklıysa *32 kHz → 16 kHz* biçiminde; `health` günlük satırında `wire=` / `in=`), karşı tarafın uygulama sürümü, gönderilen/alınan kare, gizlenen kayıp, geç gelen, tampon boşalması. |
+| Tanılama ▸ Bağlantı günlüğü | | Telefonun kendi olay günlüğü ([bkz.](#hazırlık-ve-günlük-toplama)): olay sayısı, **Bağlantı günlüğünü paylaş** (düz metin dosyası, paylaşım sayfası), **Bu anı işaretle** (yolda fark ettiğiniz bir kopuşu sonradan bulmak için), **Temizle**. Yalnızca siz paylaşırsanız telefondan çıkar. |
 | Gecikme | | Her saniye yenilenir: ses durumu, tahmini ağızdan kulağa gecikme, efekt gecikmesi (mikrofon efekti açıkken), gidiş-dönüş, bağlantı yolu, oynatma hedefi ve derinliği, kayıt yolu, giriş biçimi, ses işleme, örnekleme hızı, G/Ç tamponu, donanım gecikmesi, geri çağrı başına örnek, kayıt aralığı ve gecikmesi, oynatma örnekleri, saniyedeki boşalma/gizleme/geç/kilit kaçırma sayıları. `latency` günlük satırında hat hızı `wire=`, efekt gecikmesi `fx=` olarak görünür. |
 | Hakkında | | Sürüm, protokol (PCM hızı olarak seçili ses kalitesi) ve GitHub bağlantısı. |
 
@@ -373,7 +377,7 @@ sesli görüşmeyi bölmesin diye). İnternet, push ya da ücretli hesap gerekme
 
 | Bildirim | Ne zaman |
 |---|---|
-| *Bağlantı koptu – Ahmet ile yeniden bağlanılıyor* | Beklenmeyen kopuş 3 saniyeden uzun sürerse (hızlı toparlanan kopuşlar bildirim üretmez). |
+| *Bağlantı koptu – Ahmet ile yeniden bağlanılıyor* | Kesinti "kopuş" diye duyurulduktan (bağlantı ≥2,5 sn takılı kaldıktan) sonra 3 saniye daha sürerse; kısa kesintiler bildirim üretmez. |
 | *Ahmet ile yeniden bağlanıldı* | Bağlantı geri gelince; öncekinin yerine geçer. |
 | *Ses duraklatıldı – devam etmek için Intercom'u açın* | iOS sesi arka planda yeniden başlatmayı reddettiğinde hemen, ya da arka planda 5 saniyeden uzun süren bir ses kesintisinde. |
 
@@ -382,7 +386,8 @@ sürüm) bildirim üretmez. Uygulama ekrana gelince bildirimler kaldırılır.
 
 **Bağlantı sesleri** interkomun kendi ses çıkışına karışan kısa tonlardır: bağlandı (iki yükselen
 nota), koptu (iki alçalan nota), yeniden bağlandı (üç yükselen nota). Yalnızca ses çalışırken çalınır.
-Bağlantının kısa bir an zayıflaması (*Zayıf bağlantı…*) ton çaldırmaz.
+Bağlantının kısa bir an zayıflaması (*Zayıf bağlantı…*) ve kısa (yaklaşık 5 saniyeye kadar) kesintiler
+ton çaldırmaz; "koptu" tonu ancak kesinti sürerse çalar, "yeniden bağlandı" tonu yalnızca "koptu" çaldıysa.
 
 ## Bağlantı motorları ve eşleştirme kodu
 
@@ -391,8 +396,9 @@ Bağlantının kısa bir an zayıflaması (*Zayıf bağlantı…*) ton çaldırm
 | Altyapı | Network framework: `NWListener` + `NWBrowser` (Bonjour `_intercom-nw._udp`), eş başına bir UDP `NWConnection` | MultipeerConnectivity (`p2p-intercom`) |
 | Yol | Doğrudan Wi‑Fi (AWDL) veya aynı Wi‑Fi ağı; hücresel yasak; yol çipi kesin | Çerçeve seçer; yol görünmez |
 | Kim arar | Kurulum kimliği küçük olan hemen, diğeri 750 ms sonra; çakışmalar deterministik çözülür | Ada, sonra kurulum kimliğine göre seçim |
-| Canlılık | Ön planda 200 ms, arka planda 500 ms kalp atışı; 0,6 s sessizlikte "zayıf", 2 s'de (arka planda 3 s) kopmuş sayılır | 1 s'de bir ping; ~4 s sessizlikte kopmuş sayılır |
-| Yeniden deneme | 0 / 0,25 / 0,5 / 1 / 2 s (±%20), asla vazgeçmez; ön plana dönüşte ve ağ yolu değişince hemen | 1 / 2 / 3 / 5 s (±%20), asla vazgeçmez |
+| Canlılık | Ön planda 200 ms, arka planda 250 ms kalp atışı; 0,6 s (arka planda 0,75 s) sessizlikte "zayıf", 2 s (arka planda 3 s) sessizlikte "takıldı" (doğrulanmış ses paketi de canlılık sayılır). Takılan bağlantı 15 s korunur: eski akışa 1 sn kendiliğinden dönme şansı verilir, sonra yanında yedek bağlantı denenir; eş duyulursa (bir veri paketi geldiyse) el sıkışmasız devam edilir; 15 s sonra kopmuş sayılır. Tarama yalnızca takılı bağlantı 1 sn'yi aşınca başlar. Kurulalı 3 sn'den uzun olmuş bir bağlantıya karşı gelen yeni HELLO çakışma değil yenileme sayılır (karşı taraf sağır olabilir) | 1 s'de bir ping; ~4 s sessizlikte kopmuş sayılır |
+| El sıkışma | Akış 8 s içinde hazır olmalı; HELLO yanıtı ilk denemede 3 s, sonrakilerde 5 s (HELLO her 0,25 s tekrarlanır) | Çerçeve yönetir (davet 10 s, bekçi 12 s) |
+| Yeniden deneme | 0 / 0,25 / 0,5 / 1 / 2 s (±%20), asla vazgeçmez; ön plana dönüşte ve ağ yolu değişince hemen (bağlantı sağlıklıysa tarayıcı yeniden başlamaz) | 1 / 2 / 3 / 5 s (±%20), asla vazgeçmez |
 | Şifreleme | Bağlantı başına yön başına ChaChaPoly anahtarı, tekrar saldırısı penceresi | `MCSession` şifrelemesi (zorunlu) |
 | Eşleştirme kodu | Var | Yok |
 | Arka plan | Uygulama askıya alınmadıkça çalışır | Apple, arka planda oturumların kapandığını belgeliyor; desteklenmez |
@@ -424,7 +430,7 @@ da aynı derlemeyi kurun.
   canlı tutan budur (`audio` background mode). iOS, arka plandaki bir uygulamanın sesi yeniden
   başlatmasına izin vermez. Bunun görünen bedeli: turuncu mikrofon göstergesi sürekli yanar, AirPods
   oturum boyunca HFP profilinde kalır ve pil sürekli harcanır. Kullanmadığınızda **Durdur**'a basın.
-- **Ekran kilitliyken / başka uygulamadayken:** bağlantı sürer; kalp atışları 500 ms'ye yavaşlar.
+- **Ekran kilitliyken / başka uygulamadayken:** bağlantı sürer; kalp atışları 250 ms'ye yavaşlar.
   Uygulamadan çıkınca basılı tutulan PTT bırakılır. Arka planda konuşmak için kilit ekranındaki
   **Konuş** (sabitleme), Ses algılama ya da Açık hat modunu kullanın.
 - **Kopuşlar:** Uygulama arka planda da yeniden bağlanmayı sürdürür; bildirim ve ton çıkar, Canlı
@@ -485,6 +491,8 @@ doğrulanmadı**. İlk testlerde özellikle bunlara bakın; günlükler bunları
 | **32 kHz'de Doğrudan Wi‑Fi** | 32 kHz'de her 20 ms'lik kare ≈ 1,3 KB'lık bir datagramdır (saniyede 50); AWDL'de bu boyuttaki paketlerin kayıp ve gecikme davranışı ölçülmedi. | İki telefonda En yüksek kalite, ağsız Doğrudan Wi‑Fi: Tanılama'da *Gizlenen kayıp* / *Tampon boşalması*, `health` satırında `wire=32000`; 16 kHz ile karşılaştırın. |
 | Arka planda bildirimler, kesinti sonrası akış | Arka planda gönderilen bildirimlerin kilit ekranında görünmesi, kabul edilen aramadan sonra karşı tarafa "ses duraklatıldı" bilgisinin gidebilmesi. | `notifications`, `background`, `controller` kategorileri. |
 | Doğrudan Wi‑Fi'nin kilitli ekranda gecikmesi | Ekranlar kapalıyken AWDL'nin gecikme davranışı belgelenmemiş. | Kilitliyken `latency` satırındaki RTT ve boşalma sayıları. |
+| **Takılan bağlantının devamı** | Menzil sınırında AWDL sustuktan sonra eski `NWConnection`'ın aynı eş adresiyle kendiliğinden dönüp dönmediği, yoksa adresin değişip yalnızca yedek bağlantının mı işe yaradığı bilinmiyor. İki durumda da kopuş görünmemeli, ama hangisinin olduğu günlükte anlaşılır. | Bağlantı günlüğünde `stalled` sonrası `heard again … resumed without a new handshake` (eski akış döndü) ya da `replaces unhealthy link` (yedek devraldı). Kilitli ekranla da tekrarlayın. |
+| Takılma süresi ve ton | 15 sn'lik koruma süresinin ve 2,5 sn'lik "koptu" duyurusunun sahada uygun olup olmadığı. | Sürüşten sonra günlükte `stalled` sürelerine ve kaç tanesinde ton çaldığına (`cue lost`) bakın. |
 
 ## Test rehberi
 
@@ -532,6 +540,25 @@ uygulamaya geçirir; `OS_ACTIVITY_DT_MODE` günlükleri konsola da yazdırır.
 
 Eş adları günlükte gizli (`<private>`) görünebilir; bu bilerek böyle.
 
+**C) Mac olmadan (sürüş ve yürüyüş testleri için):** uygulama kendi **bağlantı günlüğünü** tutar:
+`Application Support/LinkJournal/journal.jsonl`, en yeni 8000 olay, uygulama yeniden başlasa da
+korunur. Sürüşten sonra **Ayarlar ▸ Tanılama ▸ Bağlantı günlüğünü paylaş** ile düz metin olarak
+gönderin. Her satır `tarih saat [kategori] ileti` biçimindedir:
+
+| Kategori | İçerik |
+|---|---|
+| `net` | Taşıma olayları: arama, el sıkışma, `stalled` (takıldı) / `heard again … resumed without a new handshake` (el sıkışmasız devam) / `dead` (vazgeçildi) ve nedeni (`silent for 2.05s` ya da `N sends failing`), tarayıcı ve dinleyici olayları, akış hazır/bekliyor/başarısız, gönderim hataları |
+| `state` | Bağlantı durumları (`connected`, `suspect`, `stalled`, `disconnected`), oturum durumu, tonlar, uyarılar |
+| `path` | Ağ yolu imzası (arayüzler ve türleri) değişince |
+| `health` | 5 saniyede bir (bağlantı zayıfken ya da yeniden bağlanırken saniyede bir): tüm durum özeti, tampon sayaçları, pil / Düşük Güç Modu / ısı |
+| `app`, `audio`, `device` | Sahne durumu (ön plan / kilit), başlat-durdur, ses durumu ve rotası, Düşük Güç / ısı / pil değişimleri |
+| `timing` | Bağlantı zamanlayıcısında 0,5 sn'den uzun boşluk: süreç askıya alınmış ya da kısılmış demektir (radyodan bağımsız bir takılma nedeni) |
+| `marker` | **Bu anı işaretle** ile koyduğunuz işaretler |
+
+Günlük yalnızca telefondadır; ağa gönderilmez. Eş adları ve kurulum kimlikleri içerir, paylaşmadan
+önce bunu bilin; eşleştirme kodunun doğrulama etiketi içermez. Dışa aktarılan dosyada satır sonları
+yazıya çevrilir (bir eşin adı satır uyduramaz) ve önceki dışa aktarımlar silinir.
+
 **Genel hazırlık:** iki telefona aynı derleme (Release), iki telefonda Yerel Ağ izni ön planda verilmiş,
 Mac'e kablosuz hata ayıklama **kullanmayın** (Wi‑Fi radyosunu paylaşır). Her test için not alın:
 bağlandı mı, kaç saniyede, yol çipi, RTT ve 2 dakika konuşmadan sonra Tanılama'daki tampon boşalması /
@@ -557,8 +584,8 @@ sonra Intercom için hiçbir alan adı listelenmemeli.
 
 | # | Adım | Beklenen |
 |---|---|---|
-| R1 | Konuşurken A'da Ayarlar'dan Wi‑Fi'yi 10 s kapatıp açın | *Yeniden bağlanıyor…* + koptu tonu, Wi‑Fi gelince birkaç saniyede bağlanır + yeniden bağlandı tonu, elle işlem yok |
-| R2 | Birbirinden duyulmayacak kadar uzaklaşın, sonra geri dönün | Uzaktayken deneme sayısı artar; geri dönünce kendiliğinden bağlanır. Mesafeyi ve toparlanma süresini not edin |
+| R1 | Konuşurken A'da Ayarlar'dan Wi‑Fi'yi 10 s kapatıp açın | ~3 sn sonra *Yeniden bağlanıyor…* + koptu tonu, Wi‑Fi gelince birkaç saniyede (çoğunlukla el sıkışmasız) bağlanır + yeniden bağlandı tonu, elle işlem yok |
+| R2 | Birbirinden duyulmayacak kadar uzaklaşın, sonra geri dönün | ≤15 sn'lik kesintiler kopuş sayılmaz (günlükte `stalled`, sonra `resumed without a new handshake`); daha uzunsa deneme sayısı artar, geri dönünce kendiliğinden bağlanır. Mesafeyi ve toparlanma süresini not edin |
 | R3 | B'de uygulamayı kaydırarak kapatıp yeniden açın | A'da kopuş birkaç saniye içinde görülür; B açılınca kendiliğinden bağlanır |
 | R4 | B'de **Durdur**, sonra **Başlat** | A yeniden bağlanmayı dener, B başlayınca bağlanır |
 | R5 | A'da **Bağlantıyı kes** | İki taraf da kendiliğinden aramaz, bildirim yok; A'da **Bağlan** ile bağlanır |
@@ -751,6 +778,14 @@ free Apple IDs. It keeps working with the screen locked and shows a Live Activit
 
 - Starts automatically on launch, discovers the other phone and connects; reconnects forever after a
   drop (0 / 0.25 / 0.5 / 1 / 2 s backoff with jitter), showing the attempt number and elapsed time.
+- Rides through short outages: peer‑to‑peer Wi‑Fi at the edge of its range goes quiet for seconds and comes
+  back, so a link that is silent for 2 s (3 s in the background) is only *stalled*: its flow and keys are
+  kept for 15 s while a replacement is dialled, and the first valid datagram from the peer resumes it with
+  no handshake. Only after 15 s is the link given up. The "lost" cue and notification wait for a stall of
+  2.5 s, so short outages are silent.
+- **Link journal** (Settings ▸ Diagnostics): an on‑device event log (newest 8000 events, kept across
+  restarts) of stalls and their reasons, reconnects, paths, app and audio state, battery / Low Power /
+  thermal state and timer gaps, exportable as plain text from the share sheet; for field tests without a Mac.
 - Push‑to‑talk, voice‑activated (with 40 ms pre‑roll) and open mic; mute in every mode.
 - Lock Screen / Dynamic Island Live Activity with **Mute/Unmute**, **mode** (PTT | Voice | Open mic)
   and, in push‑to‑talk, a **Talk latch** that keeps transmitting without holding for up to 60 s (also
@@ -817,7 +852,9 @@ free Apple IDs. It keeps working with the screen locked and shows a Live Activit
 
 - **Network (default):** `NWListener` + `NWBrowser` on Bonjour `_intercom-nw._udp`, one UDP flow per
   peer with peer‑to‑peer Wi‑Fi (AWDL) included, `.interactiveVoice`, cellular prohibited. Handshake,
-  heartbeats (200 ms foreground / 500 ms background; dead after 2 s / 3 s), duplicate‑flow arbitration,
+  heartbeats (200 ms foreground / 250 ms background; a link silent for 2 s / 3 s is *stalled*: its flow and
+  keys are kept for 15 s while a replacement is dialled, and it resumes without a handshake if the peer
+  is heard again), duplicate‑flow arbitration,
   backoff, path migration and a fallback around client‑isolated Wi‑Fi all live in the unit‑tested Core
   `LinkStateMachine`. Traffic is sealed with per‑link, per‑direction ChaChaPoly keys.
 - **Multipeer (legacy):** MultipeerConnectivity with an app‑level watchdog, ping liveness and backoff.

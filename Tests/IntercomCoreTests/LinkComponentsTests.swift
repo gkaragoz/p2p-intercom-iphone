@@ -136,8 +136,8 @@ final class LivenessMonitorTests: XCTestCase {
     func testBackgroundOnEitherSideRelaxesThresholds() {
         var monitor = LivenessMonitor(now: t0)
         monitor.isLocalInBackground = true
-        XCTAssertEqual(monitor.localHeartbeatInterval, 0.5)
-        XCTAssertEqual(monitor.suspectAfter, 1.5, accuracy: 1e-9)
+        XCTAssertEqual(monitor.localHeartbeatInterval, 0.25, "still four heartbeats a second with the screen locked")
+        XCTAssertEqual(monitor.suspectAfter, 0.75, accuracy: 1e-9)
         XCTAssertEqual(monitor.deadAfter, 3.0, accuracy: 1e-9)
         monitor.isLocalInBackground = false
         monitor.isRemoteInBackground = true
@@ -190,18 +190,19 @@ final class LivenessMonitorTests: XCTestCase {
     func testSendErrorBurstWhileThePeerIsStillHeardIsNotDeadYet() {
         var background = LivenessMonitor(now: t0)
         background.isLocalInBackground = true
-        // Heartbeats both ways every 0.5 s; ours fail, the peer's keep arriving.
+        // Heartbeats both ways every quarter second; ours fail, the peer's keep arriving.
+        let beat = background.localHeartbeatInterval
         var now = t0
-        for beat in 1...3 {
-            now = t0 + 0.5 * Double(beat)
+        for number in 1...3 {
+            now = t0 + beat * Double(number)
             background.recordReceive(at: now)
             background.recordSendError(at: now)
-            XCTAssertEqual(background.health(at: now + 0.05), .alive, "failures spanning \(0.5 * Double(beat - 1)) s")
+            XCTAssertEqual(background.health(at: now + 0.05), .alive, "failures spanning \(beat * Double(number - 1)) s")
         }
-        now += 0.5
+        now += beat
         background.recordReceive(at: now)
         background.recordSendError(at: now)
-        XCTAssertEqual(background.health(at: now), .dead, "the run spans the 1.5 s suspect threshold")
+        XCTAssertEqual(background.health(at: now), .dead, "the run spans the 0.75 s suspect threshold less a quarter interval")
 
         var foreground = LivenessMonitor(now: t0)
         for beat in 1...3 {
@@ -255,6 +256,25 @@ final class LinkArbiterTests: XCTestCase {
         let older = LinkArbiter.Candidate(dialer: high, dialSequence: 3)
         XCTAssertTrue(LinkArbiter.isPreferred(byHighNewer, over: older, local: low, remote: high), "same dialer: newest wins")
         XCTAssertFalse(LinkArbiter.isPreferred(older, over: byHighNewer, local: high, remote: low))
+    }
+
+    func testInboundHelloAfterTheGlareWindowReplacesAHealthyLink() {
+        typealias Link = LinkArbiter.ExistingLink
+        // A young healthy link dialled by the lower ID may be racing the higher ID's dial: it wins.
+        XCTAssertEqual(LinkArbiter.decideInboundHello(local: low, remote: high, helloEpoch: 1,
+                                                      primary: Link(dialer: low, remoteEpoch: 1, health: .alive,
+                                                                    establishedFor: LinkArbiter.glareWindow - 0.1)),
+                       .rejectDuplicate)
+        // Established long ago, the same link is no race: the higher ID is replacing it (it may be deaf on it).
+        XCTAssertEqual(LinkArbiter.decideInboundHello(local: low, remote: high, helloEpoch: 1,
+                                                      primary: Link(dialer: low, remoteEpoch: 1, health: .alive,
+                                                                    establishedFor: LinkArbiter.glareWindow)),
+                       .accept(supersedesPrimary: true))
+        // The other direction of the tie-break is unchanged: the lower ID's dial is accepted at any age.
+        XCTAssertEqual(LinkArbiter.decideInboundHello(local: high, remote: low, helloEpoch: 1,
+                                                      primary: Link(dialer: high, remoteEpoch: 1, health: .alive,
+                                                                    establishedFor: 0)),
+                       .accept(supersedesPrimary: false))
     }
 
     func testInboundHelloDecisions() {

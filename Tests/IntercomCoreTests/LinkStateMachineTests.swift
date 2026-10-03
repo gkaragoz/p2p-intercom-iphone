@@ -119,13 +119,19 @@ final class LinkStateMachineTests: XCTestCase {
         assertPrimariesPaired()
         let lowPrimary = low.machine.audioRoute(for: high.id)!.flow
         XCTAssertTrue(low.opened.contains { $0.flow == lowPrimary }, "the lower ID's dial must win")
-        XCTAssertEqual(low.machine.links.count, 1)
-        XCTAssertEqual(high.machine.links.count, 1)
         XCTAssertTrue(disconnects(low, peer: high.id).isEmpty)
         XCTAssertTrue(disconnects(high, peer: low.id).isEmpty)
-        net.run(for: 3)
+        // The higher ID's HELLO also reached the lower side, which ACKed it (the extra inbound link
+        // is never confirmed): it expires once the listener handshake timeout has passed.
+        net.run(for: configurationListenerTimeout + 1)
         XCTAssertTrue(bothConnected)
         assertPrimariesPaired()
+        XCTAssertEqual(low.machine.links.count, 1)
+        XCTAssertEqual(high.machine.links.count, 1)
+    }
+
+    private var configurationListenerTimeout: TimeInterval {
+        low.machine.configuration.listenerHandshakeTimeout
     }
 
     func testSimultaneousDialWithDelayedHelloStillConverges() {
@@ -159,24 +165,30 @@ final class LinkStateMachineTests: XCTestCase {
 
     // MARK: - Liveness and reconnect
 
-    func testHeartbeatLossIsDeadWithinTwoSecondsAndReconnectResumes() {
+    func testSilenceStallsTheLinkWithinTwoSecondsAndAShortOutageResumesWithoutDisconnect() {
         connectPair()
         net.run(for: 1)
         net.isPartitioned = true
         let cut = net.now
-        net.run(for: 5, until: { !self.disconnects(self.low, peer: self.high.id).isEmpty })
+        net.run(for: 5, until: { self.low.lastLinkState(for: self.high.id) == .stalled })
         let detection = net.now - cut
-        XCTAssertLessThanOrEqual(detection, 2.1, "dead must be declared within ~2 s")
+        XCTAssertLessThanOrEqual(detection, 2.1, "the monitor's verdict comes within ~2 s")
         XCTAssertGreaterThanOrEqual(detection, 1.8)
         let states = low.linkEvents(for: high.id)
-        XCTAssertTrue(states.contains(.suspect), "suspect must be reported before dead")
-        XCTAssertEqual(disconnects(low, peer: high.id), [.disconnected(.timeout)])
-        XCTAssertNil(low.audioRoutes[high.id])
+        XCTAssertTrue(states.contains(.suspect), "suspect must be reported before stalled")
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty, "a stalled link is kept, not given up")
+        XCTAssertNotNil(low.audioRoutes[high.id], "the audio route stays on the stalled link")
+        XCTAssertEqual(low.opened.count, 1, "the old flow gets a moment to come back before anything is dialled")
+        net.run(for: low.machine.configuration.recoveryDialDelay + 0.2)
+        XCTAssertGreaterThan(low.opened.count, 1, "a replacement is dialled next to the stalled link")
 
-        net.run(for: 1)
+        net.run(for: 2) // about five seconds of outage in all
         net.isPartitioned = false
         net.run(for: 6, until: { self.bothConnected })
         XCTAssertTrue(bothConnected)
+        net.run(for: 2) // let a replacement that was racing the revival settle
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty)
+        XCTAssertTrue(disconnects(high, peer: low.id).isEmpty)
         for (node, peer) in [(low!, high.id), (high!, low.id)] {
             if case .connected(_, let resumed)? = node.lastLinkState(for: peer) {
                 XCTAssertTrue(resumed, "same app instance on both ends: jitter/RTT state must be kept")
@@ -185,28 +197,196 @@ final class LinkStateMachineTests: XCTestCase {
             }
         }
         assertPrimariesPaired()
+        XCTAssertEqual(low.machine.links.count, 1)
+        XCTAssertEqual(high.machine.links.count, 1)
+    }
+
+    func testOutageLongerThanTheGraceTearsTheLinkDownOnceAndReconnects() {
+        connectPair()
+        net.run(for: 1)
+        net.isPartitioned = true
+        let cut = net.now
+        let grace = low.machine.configuration.stalledGrace
+        net.run(for: grace + 15, until: { !self.disconnects(self.low, peer: self.high.id).isEmpty })
+        let givenUp = net.now - cut
+        XCTAssertGreaterThanOrEqual(givenUp, 2 + grace - 0.2, "stalled after ~2 s, then kept for the grace period")
+        XCTAssertEqual(disconnects(low, peer: high.id), [.disconnected(.timeout)])
+        XCTAssertNil(low.audioRoutes[high.id])
+
+        net.run(for: 1)
+        net.isPartitioned = false
+        net.run(for: 12, until: { self.bothConnected })
+        XCTAssertTrue(bothConnected)
+        for (node, peer) in [(low!, high.id), (high!, low.id)] {
+            if case .connected(_, let resumed)? = node.lastLinkState(for: peer) {
+                XCTAssertTrue(resumed, "same app instance on both ends: jitter/RTT state must be kept")
+            } else {
+                XCTFail("not connected")
+            }
+        }
+        net.run(for: 2)
+        assertPrimariesPaired()
+        XCTAssertEqual(disconnects(low, peer: high.id).count, 1, "one outage, one disconnect")
+    }
+
+    func testOldFlowThatStaysDeadIsReplacedByTheRecoveryDialWithoutDisconnect() {
+        connectPair()
+        net.run(for: 1)
+        let oldLink = low.machine.audioRoute(for: high.id)!.linkID
+        // The old flow is black-holed (the peer's address changed after a re-sync) but new flows work.
+        net.dropFilter = { _, datagram in datagram.linkID == oldLink }
+        net.run(for: 12, until: {
+            guard let route = self.low.machine.audioRoute(for: self.high.id) else { return false }
+            return route.linkID != oldLink && self.bothConnected
+        })
+        XCTAssertNotEqual(low.machine.audioRoute(for: high.id)?.linkID, oldLink, "a new link took over")
+        net.run(for: 2)
+        XCTAssertTrue(bothConnected)
+        assertPrimariesPaired()
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty, "the replacement came before the grace ran out")
+        XCTAssertTrue(disconnects(high, peer: low.id).isEmpty)
+        XCTAssertTrue(low.linkEvents(for: high.id).contains(.stalled))
+        XCTAssertEqual(low.machine.links.count, 1)
+        XCTAssertEqual(high.machine.links.count, 1)
+    }
+
+    func testAudioHeardKeepsALinkAliveWhenHeartbeatsAreLost() {
+        connectPair()
+        net.run(for: 1)
+        // The higher phone's heartbeats never arrive: the lower one hears it talk instead.
+        net.dropFilter = { [unowned self] from, datagram in from === self.high && datagram.type == .heartbeat }
+        let flow = low.machine.audioRoute(for: high.id)!.flow
+        for _ in 0..<100 { // ten seconds of audio arriving every 100 ms
+            net.run(for: 0.1)
+            low.handle(.audioHeard(flow))
+        }
+        XCTAssertEqual(low.linkEvents(for: high.id).filter { $0 == .suspect || $0 == .stalled }, [],
+                       "a peer that is audibly talking is not silent")
+
+        net.run(for: 3) // the audio stops; heartbeats are still lost
+        XCTAssertTrue(low.linkEvents(for: high.id).contains(.stalled), "without audio the silence is judged again")
+    }
+
+    func testDeafPhoneReplacesALinkThatTheOtherSideStillHears() {
+        connectPair()
+        net.run(for: 4) // older than the glare window
+        let oldLink = low.machine.audioRoute(for: high.id)!.linkID
+        // The lower phone dialled the old link. Its datagrams on it vanish (the higher phone is deaf),
+        // the higher phone's still arrive, so the lower one keeps hearing it and never stalls.
+        net.dropFilter = { [unowned self] from, datagram in from === self.low && datagram.linkID == oldLink }
+        net.run(for: 12, until: {
+            guard let route = self.high.machine.audioRoute(for: self.low.id) else { return false }
+            return route.linkID != oldLink && self.bothConnected
+        })
+        XCTAssertNotEqual(high.machine.audioRoute(for: low.id)?.linkID, oldLink, "the deaf side got a new link")
+        net.run(for: 2)
+        XCTAssertTrue(bothConnected)
+        assertPrimariesPaired()
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty)
+        XCTAssertTrue(disconnects(high, peer: low.id).isEmpty)
+        XCTAssertTrue(high.linkEvents(for: low.id).contains(.stalled))
+        XCTAssertFalse(low.linkEvents(for: high.id).contains(.stalled), "the side that heard its peer never stalled")
+        XCTAssertEqual(low.machine.links.count, 1)
+        XCTAssertEqual(high.machine.links.count, 1)
+    }
+
+    func testStallDoesNotEndBecauseTheThresholdsLoosened() {
+        connectPair()
+        net.run(for: 1)
+        net.isPartitioned = true
+        net.run(for: 5, until: { self.low.lastLinkState(for: self.high.id) == .stalled })
+        let events = low.linkEvents(for: high.id).count
+        // Locking the phone moves the dead threshold from 2 s to 3 s, so the monitor stops saying
+        // "dead", although nothing at all was heard.
+        low.handle(.setAppActive(false))
+        net.run(for: 1)
+        XCTAssertEqual(low.linkEvents(for: high.id).count, events, "no new state: the peer was not heard")
+        XCTAssertEqual(low.lastLinkState(for: high.id), .stalled)
+        net.isPartitioned = false
+        net.run(for: 6, until: { self.bothConnected })
+        XCTAssertTrue(bothConnected)
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty)
+    }
+
+    func testSendErrorsKeepAStallGoingEvenWhileAudioIsHeard() {
+        connectPair()
+        net.run(for: 1)
+        low.failSends = true
+        let flow = low.machine.audioRoute(for: high.id)!.flow
+        for _ in 0..<60 { // six seconds of audio arriving every 100 ms while every send fails
+            net.run(for: 0.1)
+            low.handle(.audioHeard(flow))
+        }
+        XCTAssertEqual(low.linkEvents(for: high.id).filter { $0 == .stalled }.count, 1,
+                       "one stall, not a new one per audio packet")
+        XCTAssertLessThanOrEqual(low.opened.count, 3, "no dial per audio packet")
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty)
+    }
+
+    func testAStalledPrimaryWithNothingScheduledGetsAReplacementDial() {
+        connectPair()
+        net.run(for: 1)
+        net.isPartitioned = true
+        net.run(for: 5, until: { self.low.lastLinkState(for: self.high.id) == .stalled })
+        net.run(for: 0.5)
+        // Whatever left nothing under way (a refused dial, an abandoned handshake, a peer that became
+        // dialable meanwhile), the machine must plan a replacement again.
+        low.machine.cancelOutboundDials(of: high.id, onlyNotReady: false, reason: "test", now: net.now)
+        low.machine.peers[high.id]?.nextDialAt = nil
+        XCTAssertFalse(low.machine.hasHandshakingLink(high.id))
+        let before = low.opened.count
+        net.run(for: 2)
+        XCTAssertGreaterThan(low.opened.count, before, "a replacement dial is planned again")
+    }
+
+    func testPathChangeCancelsADialThatIsStillResolvingAndRedialsAtOnce() {
+        makePair()
+        low.reportFlowsReady = false // the flow never becomes ready: resolution is stuck
+        low.handle(.start)
+        low.handle(.peerDiscovered(high.record)) // `high` never starts, so it cannot dial in
+        net.run(for: 1)
+        XCTAssertEqual(low.opened.count, 1)
+        let stuck = low.opened[0].flow
+        low.handle(.pathChanged)
+        net.run(for: 0.3)
+        XCTAssertTrue(low.cancelled.contains(stuck), "the stuck dial is cancelled, not waited out")
+        XCTAssertGreaterThan(low.opened.count, 1, "a fresh dial starts at once")
+    }
+
+    func testConnectCancelsAnInFlightDial() {
+        makePair()
+        low.reportFlowsReady = false
+        low.handle(.start)
+        low.handle(.peerDiscovered(high.record))
+        net.run(for: 1)
+        XCTAssertEqual(low.opened.count, 1)
+        let stuck = low.opened[0].flow
+        low.handle(.connect(high.id))
+        net.run(for: 0.3)
+        XCTAssertTrue(low.cancelled.contains(stuck))
+        XCTAssertGreaterThan(low.opened.count, 1, "the user's Connect does not wait for the old attempt to time out")
     }
 
     func testReconnectNeverGivesUpAndDelaysStayCapped() {
         connectPair()
         net.isPartitioned = true
         let cut = net.now
-        net.run(for: 60)
+        net.run(for: 80)
         let dials = low.opened.dropFirst().map { $0.flow }
         let times = low.sent.filter { entry in dials.contains(entry.flow) && entry.datagram.type == .hello }
-        XCTAssertGreaterThan(dials.count, 12, "must keep dialling for the whole outage")
-        // Gap between the first HELLOs of consecutive dials: handshake timeout (≤ 2 s) + backoff (≤ 2.4 s).
+        XCTAssertGreaterThan(dials.count, 8, "must keep dialling for the whole outage")
+        // Gap between the first HELLOs of consecutive dials: handshake timeout (≤ 5 s) + backoff (≤ 2.4 s).
         var firstHello: [FlowID: MonotonicTime] = [:]
         for entry in times where firstHello[entry.flow] == nil {
             firstHello[entry.flow] = entry.time
         }
         let ordered = dials.compactMap { firstHello[$0] }
         for (a, b) in zip(ordered, ordered.dropFirst()) {
-            XCTAssertLessThanOrEqual(b - a, 2 + 2.4 + 0.15)
+            XCTAssertLessThanOrEqual(b - a, 5 + 2.4 + 0.15)
         }
-        XCTAssertGreaterThan(ordered.last! - cut, 55, "still dialling at the end of the outage")
+        XCTAssertGreaterThan(ordered.last! - cut, 70, "still dialling at the end of the outage")
         net.isPartitioned = false
-        net.run(for: 6, until: { self.bothConnected })
+        net.run(for: 8, until: { self.bothConnected })
         XCTAssertTrue(bothConnected)
     }
 
@@ -257,7 +437,7 @@ final class LinkStateMachineTests: XCTestCase {
         XCTAssertEqual(high.machine.peers[low.id]?.remoteEpoch, newEpoch)
         XCTAssertTrue(bothConnected)
 
-        net.run(for: 2.5)
+        net.run(for: high.machine.configuration.listenerHandshakeTimeout + 0.5)
         XCTAssertTrue(bothConnected)
         XCTAssertEqual(high.audioRoutes[low.id], route)
         XCTAssertTrue(high.cancelled.contains(replay), "the unconfirmed handshake times out")
@@ -301,29 +481,35 @@ final class LinkStateMachineTests: XCTestCase {
         XCTAssertTrue(bothConnected)
     }
 
-    func testPersistentSendErrorsKillLinkQuickly() {
+    func testPersistentSendErrorsStallTheLinkQuicklyAndEndItAfterTheGrace() {
         connectPair()
         low.failSends = true
         let start = net.now
-        net.run(for: 3, until: { !self.disconnects(self.low, peer: self.high.id).isEmpty })
-        XCTAssertLessThan(net.now - start, 1.0)
+        net.run(for: 3, until: { self.low.lastLinkState(for: self.high.id) == .stalled })
+        XCTAssertLessThan(net.now - start, 1.0, "failing sends mean the interface is gone: stalled within a second")
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty)
+        // Nothing can be sent, so no replacement can complete and no packet revives the old flow.
+        let grace = low.machine.configuration.stalledGrace
+        net.run(for: grace + 8, until: { !self.disconnects(self.low, peer: self.high.id).isEmpty })
+        XCTAssertEqual(disconnects(low, peer: high.id), [.disconnected(.timeout)])
+        XCTAssertGreaterThanOrEqual(net.now - start, grace - 0.2)
     }
 
-    func testBackgroundPeerSlowsHeartbeatsAndGetsLongerDeadline() {
+    func testBackgroundPeerSlowsHeartbeatsAndGetsLongerStallThreshold() {
         connectPair()
         high.handle(.setAppActive(false))
         net.run(for: 1)
         let window = net.now
         net.run(for: 2)
         let beats = high.sent.filter { $0.time > window && $0.datagram.type == .heartbeat }
-        XCTAssertLessThanOrEqual(beats.count, 5)
-        XCTAssertGreaterThanOrEqual(beats.count, 3)
+        XCTAssertLessThanOrEqual(beats.count, 9, "four heartbeats a second in the background, not five")
+        XCTAssertGreaterThanOrEqual(beats.count, 7)
         XCTAssertTrue(beats.allSatisfy { $0.datagram.isSenderInBackground })
         net.isPartitioned = true
         let cut = net.now
-        net.run(for: 6, until: { !self.disconnects(self.low, peer: self.high.id).isEmpty })
+        net.run(for: 6, until: { self.low.lastLinkState(for: self.high.id) == .stalled })
         let lastHeard = high.sent.last { $0.time <= cut && $0.datagram.type == .heartbeat }!.time
-        XCTAssertEqual(net.now - lastHeard, 3, accuracy: 0.1, "3 s dead deadline while the peer is in the background")
+        XCTAssertEqual(net.now - lastHeard, 3, accuracy: 0.1, "3 s stall threshold while the peer is in the background")
     }
 
     func testForegroundResetsBackoffAndRedialsSoon() {
@@ -342,9 +528,57 @@ final class LinkStateMachineTests: XCTestCase {
         XCTAssertGreaterThan(low.opened.count, dialsBefore)
     }
 
+    // MARK: - Marginal links
+
+    /// Ten minutes at the edge of peer-to-peer range: radio blackouts of 1 to 12 s (both ways, or one
+    /// direction only) with 4 to 9 s of working link between them. Returns the disconnects the user
+    /// would have seen on both phones, and the number of blackouts.
+    private func ride(stalledGrace: TimeInterval, seed: UInt64) -> (disconnects: Int, stalls: Int, outages: Int) {
+        net = SimNetwork()
+        makePair { $0.stalledGrace = stalledGrace }
+        startBoth()
+        net.run(for: 3, until: { self.bothConnected })
+        XCTAssertTrue(bothConnected)
+        var rng = SplitMix64(seed: seed)
+        var outages = 0
+        let end = net.now + 600
+        while net.now < end {
+            net.run(for: Double.random(in: 4...9, using: &rng))
+            let duration = Double.random(in: 1...12, using: &rng)
+            switch Int.random(in: 0...2, using: &rng) {
+            case 0: net.isPartitioned = true
+            case 1: net.dropFilter = { [unowned self] from, _ in from === self.low }
+            default: net.dropFilter = { [unowned self] from, _ in from === self.high }
+            }
+            net.run(for: duration)
+            net.isPartitioned = false
+            net.dropFilter = nil
+            outages += 1
+        }
+        net.run(for: 25, until: { self.bothConnected })
+        XCTAssertTrue(bothConnected, "the link is back after the last blackout (grace \(stalledGrace))")
+        let drops = disconnects(low, peer: high.id).count + disconnects(high, peer: low.id).count
+        let stalls = low.linkEvents(for: high.id).filter { $0 == .stalled }.count
+            + high.linkEvents(for: low.id).filter { $0 == .stalled }.count
+        return (drops, stalls, outages)
+    }
+
+    func testRidingThroughShortBlackoutsNeedsNoDisconnects() {
+        for seed in [1, 2, 3] as [UInt64] {
+            let legacy = ride(stalledGrace: 0, seed: seed)
+            let kept = ride(stalledGrace: LinkStateMachine.Configuration(localID: SimNetwork.lowID, localEpoch: 1,
+                                                                         displayName: "x", appVersion: "1").stalledGrace,
+                            seed: seed)
+            XCTAssertGreaterThan(legacy.disconnects, legacy.outages / 2,
+                                 "without a grace most blackouts end the link (seed \(seed): \(legacy))")
+            XCTAssertEqual(kept.disconnects, 0, "no blackout under 12 s may reach the user (seed \(seed): \(kept))")
+            XCTAssertGreaterThan(kept.stalls, 0, "the blackouts were noticed and ridden through (seed \(seed))")
+        }
+    }
+
     // MARK: - Browser and listener policy
 
-    func testBrowserStopsAfterHealthyLinkAndRestartsWhenSuspect() {
+    func testBrowserStopsAfterHealthyLinkAndRestartsOnlyWhenStalled() {
         connectPair()
         net.run(for: 2.5)
         XCTAssertTrue(low.browserRunning)
@@ -354,7 +588,26 @@ final class LinkStateMachineTests: XCTestCase {
         XCTAssertTrue(low.listenerRunning, "the listener keeps advertising")
         net.isPartitioned = true
         net.run(for: 0.8)
-        XCTAssertTrue(low.browserRunning, "suspect link must restart the browser")
+        XCTAssertEqual(low.lastLinkState(for: high.id), .suspect)
+        XCTAssertFalse(low.browserRunning, "a weak link is still carrying audio; a browse would only hurt it")
+        net.run(for: 1.5)
+        XCTAssertEqual(low.lastLinkState(for: high.id), .stalled)
+        XCTAssertFalse(low.browserRunning, "a fresh stall may still end on its own")
+        net.run(for: low.machine.configuration.recoveryDialDelay)
+        XCTAssertTrue(low.browserRunning, "a stalled link needs discovery")
+    }
+
+    func testForegroundAndPathChangeDoNotRestartTheBrowserOnAUsableLink() {
+        connectPair()
+        net.run(for: 4)
+        XCTAssertFalse(low.browserRunning)
+        let starts = low.browserStarts
+        low.handle(.setAppActive(false))
+        low.handle(.setAppActive(true))
+        low.handle(.pathChanged)
+        net.run(for: 0.5)
+        XCTAssertEqual(low.browserStarts, starts, "unlocking the phone must not cost a healthy link a browse")
+        XCTAssertFalse(low.browserRunning)
     }
 
     func testBrowserRebuiltAfterThreeFailedDialsAndListenerAfterSix() {
@@ -485,7 +738,7 @@ final class LinkStateMachineTests: XCTestCase {
 
         // The controller forgets the peer's status on disconnect, so an unchanged value must be re-sent.
         net.isPartitioned = true
-        net.run(for: 5, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
+        net.run(for: 30, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
         net.isPartitioned = false
         net.run(for: 6, until: { self.bothConnected })
         XCTAssertTrue(bothConnected)
@@ -501,7 +754,7 @@ final class LinkStateMachineTests: XCTestCase {
         // The lower side's direction fades first, so the higher side's last pings are never echoed;
         // then the phones are apart for two minutes.
         net.dropFilter = { from, _ in from === self.low }
-        net.run(for: 6, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
+        net.run(for: 30, until: { !self.disconnects(self.high, peer: self.low.id).isEmpty })
         XCTAssertFalse(disconnects(high, peer: low.id).isEmpty)
         net.dropFilter = nil
         net.isPartitioned = true
@@ -650,9 +903,10 @@ final class LinkStateMachineTests: XCTestCase {
         low.handle(.flowBetterPathAvailable(oldFlow))
         net.isPartitioned = true
         net.run(for: 2.5)
-        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty, "the pending replacement defers the verdict")
-        net.run(for: 1)
-        XCTAssertEqual(disconnects(low, peer: high.id), [.disconnected(.timeout)])
+        XCTAssertTrue(disconnects(low, peer: high.id).isEmpty, "the stalled primary is kept")
+        net.run(for: 40, until: { !self.disconnects(self.low, peer: self.high.id).isEmpty })
+        XCTAssertEqual(disconnects(low, peer: high.id), [.disconnected(.timeout)],
+                       "the failed migration did not stop the stalled link from being given up in the end")
         low.reportFlowsReady = true
         net.isPartitioned = false
         net.run(for: 8, until: { self.bothConnected })
@@ -685,7 +939,7 @@ final class LinkStateMachineTests: XCTestCase {
         }
         // A stall long enough for HELLO timeouts on en0 on both sides (e.g. the access point hangs).
         net.isPartitioned = true
-        net.run(for: 9)
+        net.run(for: 16) // inside the grace: the stalled link is still there when the partition heals
         XCTAssertTrue(low.opened.contains { $0.prohibited == "en0" })
         XCTAssertTrue(high.opened.contains { $0.prohibited == "en0" })
         net.isPartitioned = false
@@ -736,13 +990,14 @@ final class LinkStateMachineTests: XCTestCase {
         return LinkStateMachine(configuration: config, rng: SplitMix64(seed: 3))
     }
 
-    func testUnboundInboundFlowIsCancelledAfterTwoSeconds() {
+    func testUnboundInboundFlowIsCancelledAfterTheUnboundTimeout() {
         var machine = makeMachine()
+        let timeout = machine.configuration.unboundFlowTimeout
         var now = MonotonicTime(seconds: 10)
         _ = machine.handle(.start, now: now)
         let flow = machine.makeFlowID()
         _ = machine.handle(.inboundFlow(flow), now: now)
-        now += 1.95
+        now += timeout - 0.05
         XCTAssertFalse(machine.handle(.tick, now: now).contains(.cancelFlow(flow)))
         now += 0.05
         XCTAssertTrue(machine.handle(.tick, now: now).contains(.cancelFlow(flow)))

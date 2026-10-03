@@ -8,7 +8,7 @@ extension LinkStateMachine {
         case .hello(let hello):
             receivedHello(hello, header: datagram, on: flow, now: now)
         case .helloAck(let ack):
-            receivedHelloAck(ack, on: flow, now: now)
+            receivedHelloAck(ack, header: datagram, on: flow, now: now)
         default:
             receivedOnLink(datagram, on: id, now: now)
         }
@@ -75,7 +75,8 @@ extension LinkStateMachine {
             primary: primaryLink.flatMap { link in
                 link.remoteEpoch.map {
                     LinkArbiter.ExistingLink(dialer: candidate(for: link).dialer, remoteEpoch: $0,
-                                             health: health(of: link, now: now))
+                                             health: health(of: link, now: now),
+                                             establishedFor: link.establishedSince.map { now - $0 } ?? 0)
                 }
             }
         )
@@ -225,7 +226,7 @@ extension LinkStateMachine {
 
     // MARK: - HELLO_ACK (dialer side)
 
-    private mutating func receivedHelloAck(_ ack: NetHelloAck, on flow: FlowRecord, now: MonotonicTime) {
+    private mutating func receivedHelloAck(_ ack: NetHelloAck, header: NetDatagram, on flow: FlowRecord, now: MonotonicTime) {
         let id = flow.id
         guard var link = links[id], link.isLocalDialer, link.isHandshaking else { return }
         guard ack.echoNonce == link.localNonce else {
@@ -265,6 +266,13 @@ extension LinkStateMachine {
         link.phase = .established(since: now)
         link.liveness = LivenessMonitor(configuration: configuration.liveness, now: now)
         link.liveness.isLocalInBackground = !isAppActive
+        // The ACK header already says whether the peer is in the background; assuming a foreground
+        // peer until its first sealed datagram would judge a slower heartbeat cadence too strictly.
+        link.liveness.isRemoteInBackground = header.isSenderInBackground
+        // A replacement dialled while the primary is stalled takes over from it.
+        if let primaryFlow = peers[link.peer]?.primary, primaryFlow != id, links[primaryFlow]?.stalledSince != nil {
+            link.supersedesPrimary = true
+        }
         links[id] = link
         log("link \(ack.linkID) to \(link.peer) up on \(id) (we dialled)")
         if let context = keyContext(for: link) {
@@ -299,6 +307,8 @@ extension LinkStateMachine {
         }
         let peerID = link.peer
         links[id] = link
+        // The peer is heard again on a stalled link: it carries on, no handshake needed.
+        endStallIfHeard(id, now: now)
         if becameEstablished {
             if let epoch = link.remoteEpoch, let known = peers[peerID]?.remoteEpoch, known != epoch {
                 // The sealed datagram proves the new-epoch HELLO was fresh: now the old instance goes.
@@ -345,7 +355,8 @@ extension LinkStateMachine {
         log("dial \(link.peer) on \(link.flow) refused: bye(\(reason))")
         switch reason {
         case .duplicate, .replaced:
-            let hasOther = links(of: link.peer).contains { $0.flow != link.flow }
+            // A stalled link is no "other" link: it is the very thing the refused dial was meant to replace.
+            let hasOther = links(of: link.peer).contains { $0.flow != link.flow && $0.stalledSince == nil }
             attemptFailed(link, reason: "refused as duplicate", now: now, reschedule: !hasOther, countsAsFailedDial: false)
         case .authenticationFailed, .incompatibleVersion:
             markIncompatible(link.peer, reason: reason)

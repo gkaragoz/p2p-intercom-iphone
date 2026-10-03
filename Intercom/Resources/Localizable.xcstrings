@@ -3656,6 +3656,159 @@
         }
       }
     },
+    "The other iPhone may be out of range. Move closer; Wi‑Fi must also be on.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other iPhone may be out of range. Move closer; Wi‑Fi must also be on."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer iPhone menzil dışında olabilir. Yaklaşın; Wi‑Fi de açık olmalı."
+          }
+        }
+      }
+    },
+    "Link journal events": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link journal events"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı günlüğü olayları"
+          }
+        }
+      }
+    },
+    "Share link journal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share link journal"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı günlüğünü paylaş"
+          }
+        }
+      }
+    },
+    "Intercom link journal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom link journal"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intercom bağlantı günlüğü"
+          }
+        }
+      }
+    },
+    "Mark this moment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark this moment"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu anı işaretle"
+          }
+        }
+      }
+    },
+    "Clear link journal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear link journal"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı günlüğünü temizle"
+          }
+        }
+      }
+    },
+    "Clear the link journal?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the link journal?"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı günlüğü temizlensin mi?"
+          }
+        }
+      }
+    },
+    "This removes every recorded event.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes every recorded event."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaydedilen tüm olaylar silinir."
+          }
+        }
+      }
+    },
+    "The link journal records drops, reconnects and phone conditions on this iPhone, so a ride can be analysed afterwards. Share it after the ride.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The link journal records drops, reconnects and phone conditions on this iPhone, so a ride can be analysed afterwards. Share it after the ride."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı günlüğü bu iPhone'da kopuşları, yeniden bağlanmaları ve telefonun durumunu kaydeder; böylece bir sürüş sonradan incelenebilir. Sürüşten sonra paylaşın."
+          }
+        }
+      }
+    },
     "Wi‑Fi network": {
       "extractionState": "manual",
       "localizations": {

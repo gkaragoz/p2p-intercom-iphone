@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var nameDraft = ""
     @State private var pairingCodeDraft = ""
+    @State private var journalEventCount = 0
+    @State private var isConfirmingJournalClear = false
 
     var body: some View {
         NavigationStack {
@@ -103,7 +105,7 @@ struct SettingsView: View {
         switch controller.warning {
         case .localNetworkDenied?, .pairingMismatch?, .versionMismatch?:
             return controller.warning
-        case .wifiOff?, nil:
+        case .wifiOff?, .outOfRange?, nil:
             return nil
         }
     }
@@ -122,7 +124,7 @@ struct SettingsView: View {
         case .versionMismatch:
             Label("The other iPhone runs an incompatible version. Install the same build on both.", systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-        case .wifiOff:
+        case .wifiOff, .outOfRange:
             EmptyView()
         }
     }
@@ -299,7 +301,7 @@ struct SettingsView: View {
     }
 
     private var diagnosticsSection: some View {
-        Section("Diagnostics") {
+        Section {
             LabeledContent("Engine", value: settings.transportKind.displayName)
             LabeledContent("Output route", value: controller.route.outputName.isEmpty ? "—" : controller.route.outputName)
             LabeledContent("Input format", value: controller.inputDescription.isEmpty ? "—" : controller.inputDescription)
@@ -317,6 +319,41 @@ struct SettingsView: View {
             LabeledContent("Concealed", value: controller.statistics.concealed.formatted())
             LabeledContent("Late", value: (controller.statistics.lateDropped + controller.statistics.overflowDropped + controller.statistics.trimmed).formatted())
             LabeledContent("Underruns", value: controller.statistics.underruns.formatted())
+            journalRows
+        } header: {
+            Text("Diagnostics")
+        } footer: {
+            Text("The link journal records drops, reconnects and phone conditions on this iPhone, so a ride can be analysed afterwards. Share it after the ride.")
+        }
+    }
+
+    /// The on-device link journal: events, share, marker, clear.
+    @ViewBuilder
+    private var journalRows: some View {
+        LabeledContent("Link journal events", value: journalEventCount.formatted())
+            .task { journalEventCount = LinkJournal.shared.count }
+        ShareLink(item: LinkJournalExport(), preview: SharePreview("Intercom link journal")) {
+            Label("Share link journal", systemImage: "square.and.arrow.up")
+        }
+        Button {
+            controller.markJournal()
+            journalEventCount = LinkJournal.shared.count
+        } label: {
+            Label("Mark this moment", systemImage: "flag")
+        }
+        Button(role: .destructive) {
+            isConfirmingJournalClear = true
+        } label: {
+            Label("Clear link journal", systemImage: "trash")
+        }
+        .confirmationDialog("Clear the link journal?", isPresented: $isConfirmingJournalClear, titleVisibility: .visible) {
+            Button("Clear link journal", role: .destructive) {
+                LinkJournal.shared.clear()
+                journalEventCount = 0
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes every recorded event.")
         }
     }
 

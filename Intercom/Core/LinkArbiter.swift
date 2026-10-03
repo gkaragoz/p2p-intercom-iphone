@@ -15,9 +15,14 @@ import Foundation
 ///   datagram (a replayed HELLO never does), it replaces everything.
 /// * An inbound HELLO while our own flow to that peer is suspect or dead replaces it even if ours
 ///   would win the tie-break: the peer only redials when it has given up on that flow.
+/// * So does one that arrives long after our flow was established (`glareWindow`): a simultaneous
+///   dial is over within seconds, so a later HELLO is a replacement. The peer may be deaf on the old
+///   flow (it stalls) while we still hear it, which only the peer knows.
 enum LinkArbiter {
     /// How long the higher ID waits for the preferred dialer's HELLO before dialling itself.
     static let dialHoldoff: TimeInterval = 0.75
+    /// A link established this long ago is not in a race with an inbound HELLO.
+    static let glareWindow: TimeInterval = 3
 
     static func isPreferredDialer(local: PeerID, remote: PeerID) -> Bool {
         local < remote
@@ -48,6 +53,8 @@ enum LinkArbiter {
         var dialer: PeerID
         var remoteEpoch: UInt32
         var health: LivenessMonitor.Health
+        /// How long the link has been established; short means a simultaneous dial may be racing it.
+        var establishedFor: TimeInterval = 0
     }
 
     enum InboundHelloDecision: Equatable, Sendable {
@@ -71,7 +78,7 @@ enum LinkArbiter {
             // Same dialer opened another flow: a migration or a redial. Newest wins by dial sequence.
             return .accept(supersedesPrimary: false)
         }
-        if primary.health != .alive {
+        if primary.health != .alive || primary.establishedFor >= glareWindow {
             return .accept(supersedesPrimary: true)
         }
         // Both sides dialled and ours is healthy: keep whichever the lower ID dialled.

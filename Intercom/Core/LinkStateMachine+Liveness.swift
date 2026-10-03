@@ -45,6 +45,21 @@ extension LinkStateMachine {
 
         if let best {
             guard peer.linkUpSince == nil else {
+                if best.flow != oldPrimary {
+                    // A replacement took over a stalled (or migrating) link: it proves the path just
+                    // like a link-up does, so the failure bookkeeping of the outage ends here.
+                    peer.consecutiveFailedDials = 0
+                    peer.consecutiveHandshakeTimeouts = 0
+                    peer.dialsSinceLinkUp = 0
+                    peer.nextDialAt = nil
+                    peer.backoff.reset()
+                    peer.infrastructureTimeouts.removeAll()
+                    peer.prohibitedDialTimeouts = 0
+                    if let prohibited = peer.prohibitedInterfaceName, flows[best.flow]?.prohibitedInterfaceName == nil {
+                        log("link to \(id) took over without avoiding \(prohibited): allowing it again")
+                        peer.prohibitedInterfaceName = nil
+                    }
+                }
                 peers[id] = peer
                 updateReportedState(id, now: now)
                 return
@@ -107,10 +122,20 @@ extension LinkStateMachine {
     mutating func updateReportedState(_ id: PeerID, now: MonotonicTime) {
         guard let peer = peers[id], let flow = peer.primary, let link = links[flow], link.isEstablished else { return }
         let desired: LinkState
-        if health(of: link, now: now) == .alive {
-            desired = .connected(path: flows[flow]?.path ?? .unknown, isResumption: true)
+        if link.stalledSince != nil {
+            // Stalled until the peer has been heard again (`endStallIfHeard`), whatever the thresholds
+            // say meanwhile: locking the phone loosens them without a datagram having arrived.
+            desired = .stalled
         } else {
-            desired = .suspect
+            switch health(of: link, now: now) {
+            case .alive:
+                desired = .connected(path: flows[flow]?.path ?? .unknown, isResumption: true)
+            case .suspect:
+                desired = .suspect
+            case .dead:
+                // The monitor gave up on this flow, but it is kept for now: see `beginStall`.
+                desired = .stalled
+            }
         }
         // Only a path change is news while connected; the resumption flag matters on link-up only.
         if case .connected(let path, _)? = peer.reportedState, case .connected(let newPath, _) = desired, path == newPath {
@@ -172,18 +197,28 @@ extension LinkStateMachine {
 
         for flowID in links.keys.sorted() {
             guard let link = links[flowID], link.isEstablished else { continue }
-            let health = health(of: link, now: now)
-            if health == .dead {
-                let silence = String(format: "silent for %.2fs", link.liveness.silence(at: now))
-                let why = link.liveness.hasPersistentSendErrors(at: now)
-                    ? "\(link.liveness.sendErrorCount) sends failing, \(silence)"
-                    : silence
-                log("link \(link.linkID) to \(link.peer) on \(flowID) dead: \(why)")
-                links[flowID] = nil
-                retireFlow(flowID, linger: false, now: now)
-                resolve(link.peer, lostReason: .timeout, now: now)
-                continue
+            if let since = link.stalledSince {
+                if now - since >= configuration.stalledGrace {
+                    log("link \(link.linkID) to \(link.peer) on \(flowID) dead: \(Self.silenceDescription(of: link, now: now)), "
+                        + String(format: "stalled for %.1fs", now - since))
+                    links[flowID] = nil
+                    retireFlow(flowID, linger: false, now: now)
+                    resolve(link.peer, lostReason: .timeout, now: now)
+                    continue
+                }
+                endStallIfHeard(flowID, now: now)
+            } else if health(of: link, now: now) == .dead {
+                if configuration.stalledGrace <= 0 {
+                    // No grace configured: the monitor's verdict is final, as in the Multipeer engine.
+                    log("link \(link.linkID) to \(link.peer) on \(flowID) dead: \(Self.silenceDescription(of: link, now: now))")
+                    links[flowID] = nil
+                    retireFlow(flowID, linger: false, now: now)
+                    resolve(link.peer, lostReason: .timeout, now: now)
+                    continue
+                }
+                beginStall(flowID, now: now)
             }
+            // A stalled link keeps its heartbeats going: they are what revives it.
             if now >= link.nextHeartbeatAt {
                 sendHeartbeat(flowID, now: now)
             }
@@ -195,7 +230,95 @@ extension LinkStateMachine {
         for id in knownPeers {
             flushControl(id, now: now)
             reportRoundTripIfDue(id, now: now)
+            // A stalled primary must always have a replacement under way or planned. Several paths can
+            // leave neither (a refused or abandoned dial, a handshake that timed out while the stall
+            // began, a peer that became dialable meanwhile), and nothing else would ever dial again.
+            if isPrimaryStalled(id), peers[id]?.nextDialAt == nil, !hasHandshakingLink(id) {
+                scheduleRecoveryDial(id, now: now)
+            }
         }
+    }
+
+    // MARK: - Stalled links
+
+    /// "silent for 2.05s", or "3 sends failing, silent for 0.55s".
+    static func silenceDescription(of link: LinkRecord, now: MonotonicTime) -> String {
+        let silence = String(format: "silent for %.2fs", link.liveness.silence(at: now))
+        return link.liveness.hasPersistentSendErrors(at: now)
+            ? "\(link.liveness.sendErrorCount) sends failing, \(silence)"
+            : silence
+    }
+
+    /// The liveness monitor judged an established link dead. Peer-to-peer Wi-Fi at the edge of its
+    /// range goes quiet for seconds and then comes back, and re-establishing a link needs a better
+    /// radio than keeping one, so the link is not torn down: its flow and keys stay (and keep being
+    /// heard), and a replacement is dialled next to it. The first valid datagram on the old flow
+    /// revives it (`endStall`); a replacement that completes first takes over (`supersedesPrimary`);
+    /// only `Configuration.stalledGrace` of silence gives the link up for good.
+    private mutating func beginStall(_ flowID: FlowID, now: MonotonicTime) {
+        guard var link = links[flowID], link.isEstablished else { return }
+        link.stalledSince = now
+        links[flowID] = link
+        let isPrimary = peers[link.peer]?.primary == flowID
+        log("link \(link.linkID) to \(link.peer) on \(flowID) stalled: \(Self.silenceDescription(of: link, now: now)); "
+            + "kept for up to \(configuration.stalledGrace)s" + (isPrimary ? ", dialling a replacement" : ""))
+        guard isPrimary, var peer = peers[link.peer] else { return }
+        // A link that had been stable restarts the schedule, so the first replacement goes out at once.
+        if let since = peer.linkUpSince {
+            peer.backoff.linkWentDown(upFor: now - since)
+        }
+        peer.nextDialAt = nil
+        peers[link.peer] = peer
+        // The old flow gets a moment to come back on its own before a dial (and a browse) adds traffic
+        // to a link that is struggling; most stalls end that way.
+        scheduleRecoveryDial(link.peer, now: now, initialDelay: configuration.recoveryDialDelay)
+    }
+
+    /// Ends the stall when the peer has been heard since it began and the monitor no longer judges the
+    /// link dead. Evidence, not thresholds: a stall must not end because the thresholds loosened (the
+    /// phone was locked) or while persistent send errors still say the link is one-way.
+    mutating func endStallIfHeard(_ flowID: FlowID, now: MonotonicTime) {
+        guard let link = links[flowID], let since = link.stalledSince,
+              link.liveness.lastReceivedAt > since, health(of: link, now: now) != .dead else { return }
+        endStall(flowID, now: now)
+    }
+
+    /// The peer was heard again on a stalled link: it carries on with the same flow and keys, and the
+    /// replacement being dialled (if any) is not needed any more.
+    mutating func endStall(_ flowID: FlowID, now: MonotonicTime) {
+        guard var link = links[flowID], let since = link.stalledSince else { return }
+        link.stalledSince = nil
+        links[flowID] = link
+        log("link \(link.linkID) to \(link.peer) on \(flowID) heard again after "
+            + String(format: "%.1fs", now - since) + ": resumed without a new handshake")
+        guard var peer = peers[link.peer], peer.primary == flowID else { return }
+        peer.backoff.reset()
+        peer.consecutiveFailedDials = 0
+        peer.consecutiveHandshakeTimeouts = 0
+        peer.dialsSinceLinkUp = 0
+        peer.nextDialAt = nil
+        // A flow that was not dialled around an interface working again proves that interface is fine.
+        if flows[flowID]?.prohibitedInterfaceName == nil {
+            peer.clearInterfaceAvoidance()
+        }
+        peers[link.peer] = peer
+        for other in links(of: link.peer) where other.isHandshaking && other.isLocalDialer && !other.isMigration {
+            links[other.flow] = nil
+            retireFlow(other.flow, linger: false, now: now)
+        }
+    }
+
+    /// Plans the next replacement dial for a peer whose primary link is stalled, following backoff and
+    /// the dial holdoff like a normal reconnect. The stalled link stays primary until one succeeds.
+    mutating func scheduleRecoveryDial(_ id: PeerID, now: MonotonicTime, initialDelay: TimeInterval = 0) {
+        guard var peer = peers[id], isPrimaryStalled(id), !hasHandshakingLink(id), canDial(peer) else { return }
+        let backoff = peer.backoff.nextDelay(using: &rng)
+        let holdoff = peer.isManualOverride ? 0 : LinkArbiter.dialDelay(local: configuration.localID, remote: id,
+                                                                         holdoff: configuration.dialHoldoff)
+        let delay = initialDelay + backoff + holdoff
+        peer.nextDialAt = now + delay
+        peers[id] = peer
+        log("next recovery dial to \(id) in " + String(format: "%.2f", delay) + "s")
     }
 
     private mutating func handshakeTimedOut(_ link: LinkRecord, now: MonotonicTime) {
@@ -255,16 +378,29 @@ extension LinkStateMachine {
 
     // MARK: - Browser policy
 
-    /// Browse while any wanted peer lacks a healthy link; stop once all have been healthy for a
+    /// Peers the transport wants a link to: not suppressed or parked, and either linked before or
+    /// advertised by a compatible install.
+    private var wantedPeers: [PeerRecord] {
+        peers.values.filter {
+            $0.suppression == nil && !$0.isParked
+                && ($0.hasBeenLinked || ($0.isAdvertised && $0.compatibility == .compatible))
+        }
+    }
+
+    /// Every wanted peer has a usable link, so discovery has nothing to do. A *weak* link counts as
+    /// usable: it still carries audio, and browsing over peer-to-peer Wi-Fi is exactly what degrades
+    /// it further. Discovery starts once a link is stalled or missing.
+    func linksAreUsable(now: MonotonicTime) -> Bool {
+        let wanted = wantedPeers
+        return !wanted.isEmpty && wanted.allSatisfy { hasUsablePrimary($0, now: now) }
+    }
+
+    /// Browse while any wanted peer lacks a usable link; stop once all have been usable for a
     /// while, because an ongoing peer-to-peer browse degrades the live link (TN3213). The listener
     /// keeps advertising the whole time so a restarted peer can always dial back.
     mutating func updateBrowser(now: MonotonicTime) {
         guard isRunning else { return }
-        let wanted = peers.values.filter {
-            $0.suppression == nil && !$0.isParked
-                && ($0.hasBeenLinked || ($0.isAdvertised && $0.compatibility == .compatible))
-        }
-        let healthy = !wanted.isEmpty && wanted.allSatisfy { hasHealthyPrimary($0, now: now) }
+        let healthy = linksAreUsable(now: now)
         if healthy {
             let since = browserHealthySince ?? now
             browserHealthySince = since
@@ -283,7 +419,11 @@ extension LinkStateMachine {
         }
     }
 
+    /// Coming to the foreground or a network path change: discovery may be stale, but only matters
+    /// while some peer lacks a usable link. With usable links a restart would just start the browse
+    /// that degrades them (every unlock used to cost a healthy link a few seconds of browsing).
     mutating func restartBrowser(now: MonotonicTime) {
+        guard !linksAreUsable(now: now) else { return }
         browserHealthySince = nil
         if !isBrowserRunning {
             log("starting browser")

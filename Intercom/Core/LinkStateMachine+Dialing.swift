@@ -72,11 +72,24 @@ extension LinkStateMachine {
 
     // MARK: - User commands
 
+    /// Cancels the peer's outbound dials that have not completed (the ones still resolving only when
+    /// `onlyNotReady`), so a fresh one can start at once instead of waiting out their long timeouts.
+    mutating func cancelOutboundDials(of id: PeerID, onlyNotReady: Bool, reason: String, now: MonotonicTime) {
+        for link in links(of: id) where link.isHandshaking && link.isLocalDialer && !link.isMigration {
+            if onlyNotReady, flows[link.flow]?.isReady == true { continue }
+            log("cancelling dial \(link.flow) to \(id): \(reason)")
+            links[link.flow] = nil
+            retireFlow(link.flow, linger: false, now: now)
+        }
+    }
+
     mutating func connect(_ id: PeerID, now: MonotonicTime) {
-        guard var peer = peers[id] else {
+        guard peers[id] != nil else {
             log("connect \(id) ignored: unknown peer")
             return
         }
+        cancelOutboundDials(of: id, onlyNotReady: false, reason: "connect requested", now: now)
+        guard var peer = peers[id] else { return }
         peer.suppression = nil
         peer.isManualOverride = true
         peer.isParked = false
@@ -230,7 +243,8 @@ extension LinkStateMachine {
     mutating func serviceDials(now: MonotonicTime) {
         for id in knownPeers {
             guard let peer = peers[id], let at = peer.nextDialAt, at <= now else { continue }
-            guard canDial(peer), peer.primary == nil else {
+            // A stalled primary is replaced by a dial next to it; a healthy one needs no dial.
+            guard canDial(peer), peer.primary == nil || isPrimaryStalled(id) else {
                 peers[id]?.nextDialAt = nil
                 continue
             }
@@ -291,6 +305,10 @@ extension LinkStateMachine {
         // A failed migration is harmless while the old link still carries audio; if that link died
         // meanwhile, this was the last hope and the normal reconnect path must take over.
         if link.isMigration, peer.primary != nil {
+            // The primary may have stalled while this replacement was trying: it is still replaced.
+            if reschedule, isPrimaryStalled(link.peer), !hasHandshakingLink(link.peer) {
+                scheduleRecoveryDial(link.peer, now: now)
+            }
             return
         }
         // Every failure of a dial around an interface counts (not ready, flow failed, no HELLO_ACK), so
@@ -336,7 +354,15 @@ extension LinkStateMachine {
             }
         }
         peers[link.peer] = peer
-        guard peer.primary == nil, !hasHandshakingLink(link.peer) else { return }
+        guard !hasHandshakingLink(link.peer) else { return }
+        if peer.primary != nil {
+            // A stalled primary is being replaced: keep trying for as long as it stays stalled. A
+            // working one needs nothing (a stray failed dial, or a lost duplicate).
+            if reschedule, isPrimaryStalled(link.peer) {
+                scheduleRecoveryDial(link.peer, now: now)
+            }
+            return
+        }
         if !peer.hasBeenLinked, !peer.isAdvertised, links(of: link.peer).isEmpty {
             // Lost by the browser while this first dial was in flight (`peerLost` kept it only for the
             // dial): nothing left to redial. Report it gone so the UI stops showing it as connecting.

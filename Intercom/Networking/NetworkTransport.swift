@@ -43,9 +43,16 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
     private static let staleResultCheckDelay: TimeInterval = 5
     /// Unsent datagrams (a final `bye`) get this long before their flow is cancelled regardless.
     private static let cancelGracePeriod: TimeInterval = 0.5
+    /// A gap between two link ticks of at least this many seconds is reported to the journal.
+    private static let tickGapReportThreshold: TimeInterval = 0.5
+    /// Audio is proof of life for the link, but the machine hears of it at most this often (ns).
+    private static let audioHeardInterval: UInt64 = 100_000_000
     /// `kDNSServiceErr_PolicyDenied`: how Bonjour reports a denied Local Network permission.
     private static let dnsPolicyDenied: DNSServiceErrorType = -65570
     private static let log = Logger(subsystem: "intercom", category: "transport.network")
+    /// Events that explain a link's story also go to the on-device journal (`LinkJournal`), which
+    /// keeps the `info` lines the system log drops and can be exported without a Mac.
+    private let journal = LinkJournal.shared
 
     private let displayName: String
     private let appVersion: String
@@ -90,6 +97,8 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         var hasLoggedReady = false
         var consecutiveSendErrors = 0
         var receiveErrors = 0
+        /// Uptime (ns) of the last `.audioHeard` input for this flow.
+        var lastAudioHeardReport: UInt64 = 0
 
         init(id: FlowID, connection: NWConnection, isOutbound: Bool) {
             self.id = id
@@ -98,6 +107,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         }
     }
 
+    private var lastTickAt = MonotonicTime.now()
     private var machine: LinkStateMachine?
     private var inputBacklog: [LinkStateMachine.Input] = []
     private var isDrainingInputs = false
@@ -238,6 +248,9 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             \(self.pairingKey.isDefault ? " (default pairing code)" : "", privacy: .public) \
             app \(self.isAppActive ? "active" : "in background", privacy: .public)
             """)
+        // No key tag: it verifies the pairing code and the journal is meant to be shared.
+        journal.record("net", "starting: id \(localPeerID.rawValue) epoch \(configuration.localEpoch)"
+            + "\(pairingKey.isDefault ? " (default pairing code)" : "") app \(isAppActive ? "active" : "in background")")
         startPathMonitor()
         startTickTimer()
         submit(.start)
@@ -250,6 +263,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
     private func stopNow() {
         guard machine != nil else { return }
         Self.log.notice("stopping")
+        journal.record("net", "stopping")
         // Sends `bye` on every up link and cancels every flow (after the byes left).
         submit(.stop)
         machine = nil
@@ -280,11 +294,31 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         let timer = DispatchSource.makeTimerSource(queue: queue)
         let interval = LinkStateMachine.recommendedTickInterval
         timer.schedule(deadline: .now() + interval, repeating: interval, leeway: .milliseconds(5))
+        lastTickAt = .now()
         timer.setEventHandler { [weak self] in
-            self?.submit(.tick)
+            guard let self else { return }
+            // After a long gap, queued receive callbacks are probably still waiting behind this timer
+            // event; judging silence now would stall a link that is about to be heard. The next tick, 50 ms
+            // later, runs after they have drained.
+            guard !self.noteTickGapAndShouldSkip() else { return }
+            self.submit(.tick)
         }
         timer.resume()
         tickTimer = timer
+    }
+
+    /// The 50 ms tick that drives heartbeats and liveness is a plain dispatch timer. A gap of half a
+    /// second or more means the process was suspended or throttled (a locked phone, a busy system), a
+    /// cause of a stall that has nothing to do with the radio, so it goes into the journal.
+    private func noteTickGapAndShouldSkip() -> Bool {
+        // The continuous clock, like the machine's: it counts the time the device slept.
+        let now = MonotonicTime.now()
+        let gap = now - lastTickAt
+        lastTickAt = now
+        guard gap >= Self.tickGapReportThreshold else { return false }
+        journal.record("timing", String(format: "transport tick gap %.2fs (expected %.2fs): the process was suspended or throttled",
+                                        gap, LinkStateMachine.recommendedTickInterval))
+        return true
     }
 
     // MARK: - Machine glue (queue)
@@ -318,6 +352,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             stopListener()
         case .rebuildListener:
             Self.log.notice("rebuilding listener (new port and Bonjour registration)")
+            journal.record("net", "rebuilding listener (new port and Bonjour registration)")
             stopListener()
             startListener()
         case .startBrowser:
@@ -347,6 +382,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             // datagrams are rate-limited), and info lines stay in memory only on iOS, so a
             // `log collect` after a background test would lose disconnect reasons and backoffs.
             Self.log.notice("\(line, privacy: .public)")
+            journal.record("net", line)
         }
     }
 
@@ -354,10 +390,13 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         switch event {
         case .linkStateChanged(let peer, let state):
             Self.log.notice("link \(peer.rawValue, privacy: .public): \(String(describing: state), privacy: .public)")
+            journal.record("state", "link \(peer.rawValue): \(String(describing: state))")
         case .warning(let warning):
             Self.log.error("warning: \(String(describing: warning), privacy: .public)")
+            journal.record("net", "warning: \(String(describing: warning))")
         case .warningCleared(let warning):
             Self.log.notice("warning cleared: \(String(describing: warning), privacy: .public)")
+            journal.record("net", "warning cleared: \(String(describing: warning))")
         case .peerDiscovered(let advert):
             Self.log.info("""
                 peer \(advert.id.rawValue, privacy: .public) "\(advert.displayName, privacy: .public)" \
@@ -430,6 +469,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         let isFirst = lastPathSignature == nil
         lastPathSignature = signature
         Self.log.notice("network path \(signature, privacy: .public)")
+        journal.record("path", signature)
         if !isFirst {
             submit(.pathChanged)
         }
@@ -497,14 +537,17 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             break
         case .waiting(let error):
             Self.log.error("listener waiting: \(String(describing: error), privacy: .public)")
+            journal.record("net", "listener waiting: \(String(describing: error))")
             if Self.isLocalNetworkDenied(error) {
                 reportLocalNetworkDenied(source: "listener")
             }
         case .ready:
             Self.log.notice("listener ready on port \(port.map { String($0.rawValue) } ?? "?", privacy: .public)")
+            journal.record("net", "listener ready on port \(port.map { String($0.rawValue) } ?? "?")")
             armListenerWatchdog()
         case .failed(let error):
             Self.log.error("listener failed: \(String(describing: error), privacy: .public)")
+            journal.record("net", "listener failed: \(String(describing: error))")
             if Self.isLocalNetworkDenied(error) {
                 reportLocalNetworkDenied(source: "listener")
             }
@@ -531,9 +574,11 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
                 registeredServiceName = name
             }
             Self.log.notice("listener registered \(String(describing: endpoint), privacy: .public)")
+            journal.record("net", "listener registered \(String(describing: endpoint))")
         case .remove(let endpoint):
             listenerRegistrations = max(0, listenerRegistrations - 1)
             Self.log.notice("listener registration removed \(String(describing: endpoint), privacy: .public)")
+            journal.record("net", "listener registration removed \(String(describing: endpoint))")
             if listenerRegistrations == 0 {
                 armListenerWatchdog()
             }
@@ -553,6 +598,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             guard let self, self.machine != nil, self.listener != nil, self.listenerRegistrations == 0 else { return }
             self.listenerWatchdogStrikes += 1
             Self.log.error("listener not registered with Bonjour after \(delay, privacy: .public)s: rebuilding")
+            journal.record("net", "listener not registered with Bonjour after \(delay)s: rebuilding")
             self.stopListener()
             self.startListener()
         }
@@ -599,6 +645,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         scheduleStaleResultCheck()
         browser.start(queue: queue)
         Self.log.info("browser started")
+        journal.record("net", "browser started")
     }
 
     private func stopBrowser() {
@@ -614,6 +661,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         browser.browseResultsChangedHandler = nil
         browser.cancel()
         Self.log.info("browser stopped")
+        journal.record("net", "browser stopped")
     }
 
     private func browserStateChanged(_ state: NWBrowser.State) {
@@ -625,11 +673,13 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             Self.log.info("browser ready")
         case .waiting(let error):
             Self.log.error("browser waiting: \(String(describing: error), privacy: .public)")
+            journal.record("net", "browser waiting: \(String(describing: error))")
             if Self.isLocalNetworkDenied(error) {
                 reportLocalNetworkDenied(source: "browser")
             }
         case .failed(let error):
             Self.log.error("browser failed: \(String(describing: error), privacy: .public)")
+            journal.record("net", "browser failed: \(String(describing: error))")
             if Self.isLocalNetworkDenied(error) {
                 reportLocalNetworkDenied(source: "browser")
             }
@@ -716,6 +766,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             browser lists \(record.peerID.rawValue, privacy: .public) at \(String(describing: result.endpoint), privacy: .public) \
             via [\(interfaces, privacy: .public)]
             """)
+        journal.record("net", "browser lists \(record.peerID.rawValue) at \(String(describing: result.endpoint)) via [\(interfaces)]")
         submit(.peerDiscovered(record))
         return record.peerID
     }
@@ -733,6 +784,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             return
         }
         Self.log.info("browser no longer lists \(peer.rawValue, privacy: .public)")
+        journal.record("net", "browser no longer lists \(peer.rawValue)")
         submit(.peerLost(peer))
     }
 
@@ -795,6 +847,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             \(id, privacy: .public) dialling \(peer.rawValue, privacy: .public) at \(String(describing: endpoint), privacy: .public)\
             \(prohibited.map { " avoiding \($0.name)" } ?? "", privacy: .public)
             """)
+        journal.record("net", "\(id) dialling \(peer.rawValue) at \(String(describing: endpoint))\(prohibited.map { " avoiding \($0.name)" } ?? "")")
         connection.start(queue: queue)
         receiveNext(on: flow)
     }
@@ -816,6 +869,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         connection.betterPathUpdateHandler = { [weak self, weak flow] isBetterPathAvailable in
             guard let self, let flow, isBetterPathAvailable, self.isCurrent(flow) else { return }
             Self.log.info("\(flow.id, privacy: .public) better path available")
+            journal.record("net", "\(flow.id) better path available")
             self.submit(.flowBetterPathAvailable(flow.id))
         }
     }
@@ -833,6 +887,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             if !flow.hasLoggedReady {
                 flow.hasLoggedReady = true
                 Self.log.info("\(flow.id, privacy: .public) ready, max datagram \(connection.maximumDatagramSize, privacy: .public) bytes")
+                journal.record("net", "\(flow.id) ready, max datagram \(connection.maximumDatagramSize) bytes")
             }
             if !flow.isReceiving, !flow.isCancelled {
                 receiveNext(on: flow)
@@ -848,10 +903,12 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
                 \(flow.id, privacy: .public) waiting: \(String(describing: error), privacy: .public)\
                 \(denied ? " (Local Network permission denied)" : "", privacy: .public)
                 """)
+            journal.record("net", "\(flow.id) waiting: \(String(describing: error))\(denied ? " (Local Network permission denied)" : "")")
             guard isCurrent(flow) else { return }
             submit(.flowWaiting(flow.id, localNetworkDenied: denied))
         case .failed(let error):
             Self.log.error("\(flow.id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            journal.record("net", "\(flow.id) failed: \(String(describing: error))")
             if isCurrent(flow) {
                 submit(.flowFailed(flow.id, reason: String(describing: error)))
             }
@@ -928,6 +985,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
                 flow.consecutiveSendErrors += 1
                 if flow.consecutiveSendErrors == 1 || flow.consecutiveSendErrors % 50 == 0 {
                     Self.log.error("\(flow.id, privacy: .public) send error #\(flow.consecutiveSendErrors, privacy: .public): \(String(describing: error), privacy: .public)")
+                    journal.record("net", "\(flow.id) send error #\(flow.consecutiveSendErrors): \(String(describing: error))")
                 }
             } else {
                 flow.consecutiveSendErrors = 0
@@ -972,6 +1030,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         flow.isCancelling = true
         flow.connection.cancel()
         Self.log.info("\(flow.id, privacy: .public) cancelled")
+        journal.record("net", "\(flow.id) cancelled")
     }
 
     private func setAudioRoute(_ route: LinkStateMachine.AudioRoute?, for peer: PeerID) {
@@ -989,8 +1048,10 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
         }
         if let route, newRoute != nil {
             Self.log.notice("audio to \(peer.rawValue, privacy: .public) on \(route.flow, privacy: .public) link \(route.linkID, privacy: .public)")
+            journal.record("net", "audio to \(peer.rawValue) on \(route.flow) link \(route.linkID)")
         } else {
             Self.log.notice("audio to \(peer.rawValue, privacy: .public) paused (no link)")
+            journal.record("net", "audio to \(peer.rawValue) paused (no link)")
         }
     }
 
@@ -1013,6 +1074,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
                 flow.receiveErrors += 1
                 if flow.receiveErrors == 1 || flow.receiveErrors % 100 == 0 {
                     Self.log.error("\(flow.id, privacy: .public) receive error #\(flow.receiveErrors, privacy: .public): \(String(describing: error), privacy: .public)")
+                    journal.record("net", "\(flow.id) receive error #\(flow.receiveErrors): \(String(describing: error))")
                 }
                 guard case .ready = flow.connection.state else { return }
                 self.queue.asyncAfter(deadline: .now() + 0.05) { [weak self, weak flow] in
@@ -1023,6 +1085,16 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             }
             self.receiveNext(on: flow)
         }
+    }
+
+    /// Audio never goes through the machine, but a peer that is talking is not silent: a link that is
+    /// carrying audio must not be judged dead because a few heartbeats were lost. Reported at most
+    /// ten times a second, so it costs the machine nothing.
+    private func noteAudioHeard(on flow: Flow) {
+        let now = DispatchTime.now().uptimeNanoseconds
+        guard now &- flow.lastAudioHeardReport >= Self.audioHeardInterval else { return }
+        flow.lastAudioHeardReport = now
+        submit(.audioHeard(flow.id))
     }
 
     private func received(_ content: Data, on flow: Flow) {
@@ -1040,6 +1112,7 @@ final class NetworkTransport: PeerTransport, @unchecked Sendable {
             // Audio never goes through the machine, and only a flow keyed by a completed handshake may play it.
             guard datagram.isSealed, flow.sealer != nil, let peer = flow.remotePeer else { return }
             onAudio?(packet, peer)
+            noteAudioHeard(on: flow)
             return
         }
         submit(.datagram(datagram, on: flow.id))
